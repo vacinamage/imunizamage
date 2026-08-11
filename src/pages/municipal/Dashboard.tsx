@@ -93,7 +93,7 @@ export const MunicipalDashboard = () => {
       <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card>
           <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-            Últimos pedidos
+            Últimas solicitações
           </h2>
 
           <p className="mt-1 text-sm text-slate-500">
@@ -118,10 +118,10 @@ export const MunicipalDashboard = () => {
 
           <button
             type="button"
-            onClick={() => navigate('/app/pedidos')}
+            onClick={() => navigate('/app/solicitações')}
             className="mt-5 text-sm font-bold text-brand-600 hover:underline"
           >
-            Ver todos os pedidos
+            Ver todas as Solicitações
           </button>
         </Card>
 

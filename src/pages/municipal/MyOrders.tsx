@@ -32,7 +32,7 @@ export const MyOrders = () => {
           <h1 className="text-3xl font-bold">Minhas Solicitações</h1>
 
           <p className="text-slate-500">
-            Acompanhe o status e a entrega dos seus pedidos de vacinas.
+            Acompanhe o status e a entrega das suas solicitações de vacinas.
           </p>
         </div>
 

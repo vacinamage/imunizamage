@@ -24,6 +24,6 @@ export default function App() {
     <Route path="/" element={<Navigate to="/login" replace/>}/>
     <Route path="*" element={<div className="grid min-h-screen place-items-center text-2xl font-bold">404 · Página não encontrada</div>}/>
   <Route path="/app/pedir-vacina" element={<OrderVaccines />} />
-<Route path="/app/pedidos" element={<MyOrders />} /> 
+<Route path="/app/solicitações" element={<MyOrders />} /> 
 </Routes>
 }

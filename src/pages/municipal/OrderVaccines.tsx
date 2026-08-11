@@ -87,7 +87,7 @@ export const OrderVaccines = () => {
     setShowConfirmModal(false);
     setShowSuccess(true);
     setTimeout(() => {
-      navigate('/app/pedidos');
+      navigate('/app/solicitações');
     }, 2500);
   };
 
@@ -98,7 +98,7 @@ export const OrderVaccines = () => {
           <CheckCircle2 size={48} />
         </motion.div>
         <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Solicitação enviada com sucesso!</h1>
-        <p className="text-slate-500 mt-2">Você está sendo redirecionado para o histórico de pedidos...</p>
+        <p className="text-slate-500 mt-2">Você está sendo redirecionado para o histórico de solicitações...</p>
       </div>
     );
   }
