@@ -14,7 +14,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     ['Estoque', '/app/estoque', Package], ['Campanhas', '/app/campanhas', CalendarDays]
   ] as const;
   const global = [
-    ['Dashboard global', '/admin', Globe2], ['Tenants', '/admin/tenants', Database], ['Saúde do sistema', '/admin/saude', Activity], ['Configurações', '/admin/configuracoes', Settings]
+    ['Menu', '/admin', Globe2], ['Municípios', '/admin/municipios', Database], ['Monitoramento', '/admin/monitoramento', Activity], ['Configurações', '/admin/configuracoes', Settings]
   ] as const;
   const menu = currentEnv === 'GLOBAL' ? global : municipal;
 
