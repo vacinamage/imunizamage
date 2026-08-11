@@ -1,4 +1,11 @@
-import { BookOpen, ClipboardList, Package, AlertTriangle } from 'lucide-react';
+import {
+  BookOpen,
+  ClipboardList,
+  Package,
+  AlertTriangle,
+  FileCheck2,
+} from 'lucide-react';
+
 import { useNavigate } from 'react-router-dom';
 import { Card } from '../../components/ui';
 
@@ -20,8 +27,15 @@ export const MunicipalDashboard = () => {
       action: () => navigate('/app/pedir-vacina'),
     },
     {
-      title: 'Estoque',
-      description: 'Consulte as quantidades disponíveis.',
+      title: 'Solicitações',
+      description: 'Analise e autorize as solicitações das unidades.',
+      icon: FileCheck2,
+      action: () => navigate('/app/solicitacoes'),
+      notification: 4,
+    },
+    {
+      title: 'Estoque Central',
+      description: 'Consulte as quantidades disponíveis na Central.',
       icon: Package,
       action: () => navigate('/app/estoque'),
     },
@@ -36,14 +50,16 @@ export const MunicipalDashboard = () => {
   return (
     <div className="mx-auto max-w-[1500px] space-y-8">
       <header>
-        <p className="font-semibold text-brand-600">Prefeitura de Magé</p>
+        <p className="font-semibold text-brand-600">
+          Prefeitura de Magé
+        </p>
 
         <h1 className="mt-1 text-3xl font-bold text-slate-900 dark:text-white">
-          Gestão de vacinas
+          Central de Imunização
         </h1>
 
         <p className="mt-2 text-slate-500">
-          Consulte o estoque, acompanhe os lotes e envie solicitações de vacinas.
+          Gerencie solicitações, estoque e lotes de vacinas do município.
         </p>
       </header>
 
@@ -52,7 +68,7 @@ export const MunicipalDashboard = () => {
           Acesso rápido
         </h2>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
           {shortcuts.map((shortcut) => {
             const Icon = shortcut.icon;
 
@@ -63,7 +79,14 @@ export const MunicipalDashboard = () => {
                 onClick={shortcut.action}
                 className="text-left"
               >
-                <Card className="h-full transition-all hover:-translate-y-1 hover:border-brand-300 hover:shadow-md">
+                <Card className="relative h-full transition-all hover:-translate-y-1 hover:border-brand-300 hover:shadow-md">
+                  {shortcut.notification !== undefined &&
+                    shortcut.notification > 0 && (
+                      <span className="absolute right-4 top-4 flex min-w-6 items-center justify-center rounded-full bg-red-500 px-2 py-1 text-[10px] font-bold text-white">
+                        {shortcut.notification}
+                      </span>
+                    )}
+
                   <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-50 text-brand-600 dark:bg-brand-950/40">
                     <Icon size={28} />
                   </div>
@@ -92,36 +115,105 @@ export const MunicipalDashboard = () => {
 
       <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card>
-          <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-            Últimas solicitações
-          </h2>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+                Solicitações pendentes
+              </h2>
 
-          <p className="mt-1 text-sm text-slate-500">
-            Acompanhe rapidamente as solicitações mais recentes.
-          </p>
+              <p className="mt-1 text-sm text-slate-500">
+                Acompanhe rapidamente o que precisa de análise.
+              </p>
+            </div>
+
+            <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-bold text-red-700">
+              4 pendentes
+            </span>
+          </div>
+
+          <div className="mt-5 grid grid-cols-3 gap-3">
+            <button
+              type="button"
+              onClick={() => navigate('/app/solicitacoes')}
+              className="rounded-xl bg-slate-50 p-4 text-left transition hover:bg-slate-100 dark:bg-slate-800/50 dark:hover:bg-slate-800"
+            >
+              <p className="text-2xl font-bold text-brand-600">
+                2
+              </p>
+
+              <p className="mt-1 text-xs font-semibold text-slate-500">
+                Novas
+              </p>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => navigate('/app/solicitacoes')}
+              className="rounded-xl bg-slate-50 p-4 text-left transition hover:bg-slate-100 dark:bg-slate-800/50 dark:hover:bg-slate-800"
+            >
+              <p className="text-2xl font-bold text-amber-600">
+                2
+              </p>
+
+              <p className="mt-1 text-xs font-semibold text-slate-500">
+                Em análise
+              </p>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => navigate('/app/solicitacoes')}
+              className="rounded-xl bg-slate-50 p-4 text-left transition hover:bg-slate-100 dark:bg-slate-800/50 dark:hover:bg-slate-800"
+            >
+              <p className="text-2xl font-bold text-emerald-600">
+                1
+              </p>
+
+              <p className="mt-1 text-xs font-semibold text-slate-500">
+                Autorizada
+              </p>
+            </button>
+          </div>
 
           <div className="mt-5 space-y-3">
             {[
-              ['REQ-2026-003', 'Em análise'],
-              ['REQ-2026-002', 'Em transporte'],
-              ['REQ-2026-001', 'Entregue'],
-            ].map(([number, status]) => (
-              <div
+              ['SLT-2026-000001', 'UBS Fragoso', 'Em análise'],
+              ['SLT-2026-000007', 'Guarani 01', 'Em análise'],
+              ['SLT-2026-000006', 'UBS Suruí', 'Nova'],
+            ].map(([number, unit, status]) => (
+              <button
                 key={number}
-                className="flex items-center justify-between rounded-xl bg-slate-50 p-4 dark:bg-slate-800/50"
+                type="button"
+                onClick={() =>
+                  navigate(`/app/solicitacoes/${number}`)
+                }
+                className="flex w-full items-center justify-between rounded-xl bg-slate-50 p-4 text-left transition hover:bg-slate-100 dark:bg-slate-800/50 dark:hover:bg-slate-800"
               >
-                <span className="font-semibold">{number}</span>
-                <span className="text-sm text-slate-500">{status}</span>
-              </div>
+                <div>
+                  <p className="font-semibold">
+                    {number}
+                  </p>
+
+                  <p className="mt-1 text-xs text-slate-500">
+                    {unit}
+                  </p>
+                </div>
+
+                <span className="text-sm font-semibold text-slate-500">
+                  {status}
+                </span>
+              </button>
             ))}
           </div>
 
           <button
             type="button"
-            onClick={() => navigate('/app/solicitações')}
+            onClick={() =>
+              navigate('/app/solicitacoes')
+            }
             className="mt-5 text-sm font-bold text-brand-600 hover:underline"
           >
-            Ver todas as Solicitações
+            Ver todas as solicitações →
           </button>
         </Card>
 
@@ -136,7 +228,10 @@ export const MunicipalDashboard = () => {
 
           <div className="mt-5 space-y-3">
             <div className="rounded-xl border border-red-200 bg-red-50 p-4 dark:border-red-900 dark:bg-red-950/20">
-              <p className="font-bold text-red-700">2 lotes vencidos</p>
+              <p className="font-bold text-red-700">
+                2 lotes vencidos
+              </p>
+
               <p className="mt-1 text-sm text-red-600">
                 Verifique os lotes que não podem mais ser utilizados.
               </p>
@@ -146,6 +241,7 @@ export const MunicipalDashboard = () => {
               <p className="font-bold text-amber-700">
                 3 lotes próximos do vencimento
               </p>
+
               <p className="mt-1 text-sm text-amber-600">
                 Existem lotes com validade inferior a 90 dias.
               </p>
@@ -155,6 +251,7 @@ export const MunicipalDashboard = () => {
               <p className="font-bold text-blue-700">
                 4 vacinas com estoque reduzido
               </p>
+
               <p className="mt-1 text-sm text-blue-600">
                 Avalie a necessidade de reposição.
               </p>
