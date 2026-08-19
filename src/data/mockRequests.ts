@@ -23,6 +23,8 @@ export interface RequestItem {
   reductionReason?: string;
 
   notes?: string;
+
+  addedByCentral?: boolean;
 }
 
 export interface VaccineRequest {

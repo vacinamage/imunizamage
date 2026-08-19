@@ -20,9 +20,11 @@ export const Memorandum = () => {
 
   const location = useLocation();
 
-  const state = (location.state || {}) as LocationState;
+  const state =
+    (location.state || {}) as LocationState;
 
-  const request = getRequestByProtocol(protocol);
+  const request =
+    getRequestByProtocol(protocol);
 
   if (!request) {
     return (
@@ -54,13 +56,37 @@ export const Memorandum = () => {
 
   const releaseDate =
     request.authorizedAt ||
-    '19/08/2026 10:33';
+    new Date().toLocaleString('pt-BR');
 
   const requesterRole =
     'ADMINISTRATIVO';
 
   const cnes =
     '2278731';
+
+  const getLot = (
+    item: RequestItem
+  ) => {
+    /*
+     * Para os itens adicionados pela Central,
+     * o vaccineId está sendo usado temporariamente
+     * para guardar o lote.
+     */
+    if (item.addedByCentral) {
+      return item.vaccineId;
+    }
+
+    /*
+     * Enquanto o estoque ainda é mockado,
+     * os itens normais também usam vaccineId
+     * como referência demonstrativa.
+     *
+     * Quando conectarmos ao estoque real,
+     * este campo será substituído pelo lote
+     * selecionado no banco.
+     */
+    return item.vaccineId.toUpperCase();
+  };
 
   const renderItems = () => {
     return (
@@ -89,7 +115,7 @@ export const Memorandum = () => {
               </td>
 
               <td className="border border-black px-2 py-1">
-                {item.vaccineId.toUpperCase()}
+                {getLot(item)}
               </td>
 
               <td className="border border-black px-2 py-1">
@@ -104,7 +130,9 @@ export const Memorandum = () => {
 
   const renderVoucher = (
     copyTitle: string,
-    footerType: 'received' | 'released'
+    footerType:
+      | 'received'
+      | 'released'
   ) => {
     return (
       <section className="voucher flex min-h-[132mm] flex-col bg-white px-4 py-3 text-black">
@@ -229,7 +257,7 @@ export const Memorandum = () => {
 
             <div>
               <p className="mb-1 text-[9px]">
-                19/08/2026
+                {new Date().toLocaleDateString('pt-BR')}
               </p>
 
               <div className="border-b border-black" />
