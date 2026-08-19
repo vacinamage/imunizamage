@@ -1,52 +1,198 @@
-import { Navigate, Outlet, Route, Routes } from 'react-router-dom';
-import { AppShell } from './components/layout/AppShell';
+import {
+  Navigate,
+  Outlet,
+  Route,
+  Routes,
+} from 'react-router-dom';
+
 import { useAuth } from './contexts/AuthContext';
+
 import { Login } from './pages/auth/Login';
+
 import { MunicipalDashboard } from './pages/municipal/Dashboard';
-import { Placeholder } from './pages/Placeholder';
-import { AdminDashboard } from './pages/super-admin/AdminDashboard';
 import { OrderVaccines } from './pages/municipal/OrderVaccines';
 import { MyOrders } from './pages/municipal/MyOrders';
+
 import { Requests } from './pages/municipal/Requests';
 import { RequestAnalysis } from './pages/municipal/RequestAnalysis';
-import { Memorandum } from './pages/municipal/MemorandumValidation';
+import { Memorandum } from './pages/municipal/Memorandum';
+
 import { CentralStock } from './pages/municipal/CentralStock';
 
-function Protected({ superAdmin = false }: { superAdmin?: boolean }) {
+import { AdminDashboard } from './pages/super-admin/AdminDashboard';
+
+const Protected = ({
+  superAdmin = false,
+}: {
+  superAdmin?: boolean;
+}) => {
   const { user } = useAuth();
-  if (!user) return <Navigate to="/login" replace/>;
-  if (superAdmin && user.role !== 'SUPER_ADMIN') return <Navigate to="/403" replace/>;
-  return <AppShell><Outlet/></AppShell>;
-}
+
+  if (!user) {
+    return (
+      <Navigate
+        to="/login"
+        replace
+      />
+    );
+  }
+
+  /*
+   * Por enquanto mantemos esta validação
+   * simples.
+   *
+   * Depois, quando implementarmos as
+   * permissões definitivas, vamos substituir
+   * essa lógica.
+   */
+  if (
+    superAdmin &&
+    user.role !== 'SUPER_ADMIN'
+  ) {
+    return (
+      <Navigate
+        to="/403"
+        replace
+      />
+    );
+  }
+
+  return <Outlet />;
+};
 
 export default function App() {
-  return <Routes>
-    <Route path="/login" element={<Login/>}/>
-    <Route path="/app" element={<Protected/>}><Route index element={<MunicipalDashboard/>}/><Route path="pacientes" element={<Placeholder title="Pacientes"/>}/><Route path="vacinacao" element={<Placeholder title="Vacinação"/>}/><Route path="estoque" element={<Placeholder title="Estoque"/>}/><Route path="campanhas" element={<Placeholder title="Campanhas"/>}/></Route>
-    <Route path="/admin" element={<Protected superAdmin/>}><Route index element={<AdminDashboard/>}/><Route path="tenants" element={<Placeholder title="Gestão de tenants"/>}/><Route path="saude" element={<Placeholder title="Saúde do sistema"/>}/><Route path="configuracoes" element={<Placeholder title="Configurações globais"/>}/></Route>
-    <Route path="/403" element={<div className="grid min-h-screen place-items-center text-2xl font-bold">403 · Acesso negado</div>}/>
-    <Route path="/" element={<Navigate to="/login" replace/>}/>
-    <Route path="*" element={<div className="grid min-h-screen place-items-center text-2xl font-bold">404 · Página não encontrada</div>}/>
-  <Route path="/app/pedir-vacina" element={<OrderVaccines />} />
-  
-  <Route
-  path="/app/estoque"
-  element={<CentralStock />}
-/>
-<Route
-  path="/app/solicitacoes"
-  element={<Requests />}
-/>
+  return (
+    <Routes>
 
-<Route
-  path="/app/solicitacoes/:protocol"
-  element={<RequestAnalysis />}
-/>
+      {/* LOGIN */}
+      <Route
+        path="/login"
+        element={<Login />}
+      />
 
-<Route
-  path="/app/memorando/:protocol"
-  element={<Memorandum />}
-  
-/>
-</Routes>
+      {/* ==================================================
+          ÁREA MUNICIPAL / CENTRAL
+      ================================================== */}
+
+      <Route
+        element={<Protected />}
+      >
+
+        {/* MENU CENTRAL */}
+        <Route
+          path="/app"
+          element={<MunicipalDashboard />}
+        />
+
+        {/* NOVA SOLICITAÇÃO */}
+        <Route
+          path="/app/pedir-vacina"
+          element={<OrderVaccines />}
+        />
+
+        {/* MINHAS SOLICITAÇÕES */}
+        <Route
+          path="/app/meus-pedidos"
+          element={<MyOrders />}
+        />
+
+        {/* SOLICITAÇÕES DA CENTRAL */}
+        <Route
+          path="/app/solicitacoes"
+          element={<Requests />}
+        />
+
+        {/* ANÁLISE / AUTORIZAÇÃO */}
+        <Route
+          path="/app/solicitacoes/:protocol"
+          element={<RequestAnalysis />}
+        />
+
+        {/* MEMORANDO */}
+        <Route
+          path="/app/memorando/:protocol"
+          element={<Memorandum />}
+        />
+
+        {/* ===============================
+            ESTOQUE CENTRAL
+        =============================== */}
+
+        <Route
+          path="/app/estoque"
+          element={<CentralStock />}
+        />
+
+      </Route>
+
+      {/* ==================================================
+          ADMINISTRADOR GLOBAL
+      ================================================== */}
+
+      <Route
+        element={
+          <Protected superAdmin />
+        }
+      >
+
+        <Route
+          path="/admin"
+          element={<AdminDashboard />}
+        />
+
+      </Route>
+
+      {/* ACESSO NEGADO */}
+      <Route
+        path="/403"
+        element={
+          <div className="grid min-h-screen place-items-center bg-slate-50 px-4 dark:bg-slate-950">
+            <div className="text-center">
+              <h1 className="text-4xl font-bold text-slate-900 dark:text-white">
+                403
+              </h1>
+
+              <p className="mt-2 text-lg font-semibold">
+                Acesso negado
+              </p>
+
+              <p className="mt-1 text-sm text-slate-500">
+                Você não possui permissão para acessar esta área.
+              </p>
+            </div>
+          </div>
+        }
+      />
+
+      {/* REDIRECIONAMENTO INICIAL */}
+      <Route
+        path="/"
+        element={
+          <Navigate
+            to="/login"
+            replace
+          />
+        }
+      />
+
+      {/* PÁGINA NÃO ENCONTRADA */}
+      <Route
+        path="*"
+        element={
+          <div className="grid min-h-screen place-items-center bg-slate-50 px-4 dark:bg-slate-950">
+            <div className="text-center">
+              <h1 className="text-4xl font-bold text-slate-900 dark:text-white">
+                404
+              </h1>
+
+              <p className="mt-2 text-lg font-semibold">
+                Página não encontrada
+              </p>
+            </div>
+          </div>
+        }
+      />
+
+    </Routes>
+  );
 }
