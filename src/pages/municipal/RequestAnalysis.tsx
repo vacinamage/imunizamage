@@ -892,8 +892,9 @@ export const RequestAnalysis = () => {
        * Vai direto para o Histórico.
        */
       navigate(
-        '/app/historico'
-      );
+  '/app/solicitacoes'
+);
+
     } catch {
       alert(
         'Não foi possível rejeitar a solicitação.'
