@@ -9,6 +9,10 @@ import {
   AlertTriangle,
   Plus,
   Trash2,
+  Search,
+  Syringe,
+  ArrowLeft,
+  Package,
 } from 'lucide-react';
 
 import {
@@ -22,15 +26,58 @@ import {
   RequestItem,
 } from '../../data/mockRequests';
 
+import {
+  vaccineCatalog,
+  vaccineCategories,
+  VaccineCatalogItem,
+  VaccineCategory,
+} from '../../data/vaccineCatalog';
+
 type DraftItem = RequestItem & {
   authorizedQuantity: number;
   notes?: string;
   addedByCentral?: boolean;
 };
 
+type VaccineOverride = {
+  name?: string;
+  category?: VaccineCategory;
+  imageUrl?: string;
+  stock?: number;
+  active?: boolean;
+};
+
+type VaccineOverrides = Record<
+  string,
+  VaccineOverride
+>;
+
+const STORAGE_KEY =
+  'imuniza-vaccine-overrides';
+
+const loadOverrides =
+  (): VaccineOverrides => {
+    try {
+      const saved =
+        localStorage.getItem(
+          STORAGE_KEY
+        );
+
+      if (!saved) {
+        return {};
+      }
+
+      return JSON.parse(saved);
+    } catch {
+      return {};
+    }
+  };
+
 export const RequestAnalysis = () => {
   const navigate = useNavigate();
-  const { protocol = '' } = useParams();
+
+  const { protocol = '' } =
+    useParams();
 
   const request =
     getRequestByProtocol(protocol);
@@ -38,94 +85,180 @@ export const RequestAnalysis = () => {
   const [items, setItems] =
     useState<DraftItem[]>(
       () =>
-        request?.items.map((item) => ({
-          ...item,
-        })) ?? []
+        request?.items.map(
+          (item) => ({
+            ...item,
+          })
+        ) ?? []
     );
 
-  const [showConfirm, setShowConfirm] =
-    useState(false);
-
-  const [showAddVaccine, setShowAddVaccine] =
-    useState(false);
-
-  const [success, setSuccess] =
-    useState(false);
+  const [
+    showConfirm,
+    setShowConfirm,
+  ] = useState(false);
 
   const [
-    extraVaccineName,
-    setExtraVaccineName,
-  ] = useState('');
+    showCatalog,
+    setShowCatalog,
+  ] = useState(false);
 
   const [
-    extraLot,
-    setExtraLot,
+    showQuantityModal,
+    setShowQuantityModal,
+  ] = useState(false);
+
+  const [
+    success,
+    setSuccess,
+  ] = useState(false);
+
+  const [
+    selectedVaccine,
+    setSelectedVaccine,
+  ] =
+    useState<VaccineCatalogItem | null>(
+      null
+    );
+
+  const [
+    selectedLot,
+    setSelectedLot,
   ] = useState('');
 
   const [
     extraQuantity,
     setExtraQuantity,
-  ] = useState(0);
+  ] = useState(1);
 
-  const totals = useMemo(() => {
-    const requestedItems =
-      items.filter(
-        (item) =>
-          !item.addedByCentral
+  const [
+    searchTerm,
+    setSearchTerm,
+  ] = useState('');
+
+  const [
+    categoryFilter,
+    setCategoryFilter,
+  ] =
+    useState<
+      'TODAS' | VaccineCategory
+    >('TODAS');
+
+  const [
+    vaccineOverrides,
+  ] =
+    useState<VaccineOverrides>(
+      loadOverrides
+    );
+
+  const vaccines =
+    useMemo(() => {
+      return vaccineCatalog.map(
+        (vaccine) => ({
+          ...vaccine,
+          ...vaccineOverrides[
+            vaccine.id
+          ],
+        })
       );
+    }, [vaccineOverrides]);
 
-    const extraItems =
-      items.filter(
-        (item) =>
-          item.addedByCentral
+  const visibleVaccines =
+    useMemo(() => {
+      const term =
+        searchTerm
+          .trim()
+          .toLowerCase();
+
+      return vaccines.filter(
+        (vaccine) => {
+          const matchesSearch =
+            !term ||
+            vaccine.name
+              .toLowerCase()
+              .includes(term);
+
+          const matchesCategory =
+            categoryFilter ===
+              'TODAS' ||
+            vaccine.category ===
+              categoryFilter;
+
+          return (
+            vaccine.active &&
+            matchesSearch &&
+            matchesCategory
+          );
+        }
       );
+    }, [
+      vaccines,
+      searchTerm,
+      categoryFilter,
+    ]);
 
-    const requested =
-      requestedItems.reduce(
-        (sum, item) =>
-          sum +
-          item.requestedQuantity,
-        0
-      );
+  const totals =
+    useMemo(() => {
+      const requestedItems =
+        items.filter(
+          (item) =>
+            !item.addedByCentral
+        );
 
-    const authorized =
-      items.reduce(
-        (sum, item) =>
-          sum +
-          item.authorizedQuantity,
-        0
-      );
+      const extraItems =
+        items.filter(
+          (item) =>
+            item.addedByCentral
+        );
 
-    const full =
-      requestedItems.filter(
-        (item) =>
-          item.authorizedQuantity ===
-          item.requestedQuantity
-      ).length;
+      const requested =
+        requestedItems.reduce(
+          (sum, item) =>
+            sum +
+            item.requestedQuantity,
+          0
+        );
 
-    const partial =
-      requestedItems.filter(
-        (item) =>
-          item.authorizedQuantity > 0 &&
-          item.authorizedQuantity <
+      const authorized =
+        items.reduce(
+          (sum, item) =>
+            sum +
+            item.authorizedQuantity,
+          0
+        );
+
+      const full =
+        requestedItems.filter(
+          (item) =>
+            item.authorizedQuantity ===
             item.requestedQuantity
-      ).length;
+        ).length;
 
-    const rejected =
-      requestedItems.filter(
-        (item) =>
-          item.authorizedQuantity === 0
-      ).length;
+      const partial =
+        requestedItems.filter(
+          (item) =>
+            item.authorizedQuantity >
+              0 &&
+            item.authorizedQuantity <
+              item.requestedQuantity
+        ).length;
 
-    return {
-      requested,
-      authorized,
-      full,
-      partial,
-      rejected,
-      extra: extraItems.length,
-    };
-  }, [items]);
+      const rejected =
+        requestedItems.filter(
+          (item) =>
+            item.authorizedQuantity ===
+            0
+        ).length;
+
+      return {
+        requested,
+        authorized,
+        full,
+        partial,
+        rejected,
+        extra:
+          extraItems.length,
+      };
+    }, [items]);
 
   if (!request) {
     return (
@@ -158,9 +291,12 @@ export const RequestAnalysis = () => {
           return item;
         }
 
-        if (item.addedByCentral) {
+        if (
+          item.addedByCentral
+        ) {
           return {
             ...item,
+
             authorizedQuantity:
               Math.max(
                 0,
@@ -214,16 +350,21 @@ export const RequestAnalysis = () => {
   ) => {
     setItems((prev) =>
       prev.map((item) => {
-        if (item.id !== id) {
+        if (
+          item.id !== id
+        ) {
           return item;
         }
 
-        if (item.addedByCentral) {
+        if (
+          item.addedByCentral
+        ) {
           return item;
         }
 
         return {
           ...item,
+
           authorizedQuantity:
             Math.min(
               item.requestedQuantity,
@@ -232,52 +373,6 @@ export const RequestAnalysis = () => {
         };
       })
     );
-  };
-
-  const addExtraVaccine = () => {
-    if (
-      !extraVaccineName.trim()
-    ) {
-      alert('Informe a vacina.');
-      return;
-    }
-
-    if (!extraLot.trim()) {
-      alert('Informe o lote.');
-      return;
-    }
-
-    if (extraQuantity <= 0) {
-      alert(
-        'Informe uma quantidade maior que zero.'
-      );
-      return;
-    }
-
-    const newItem: DraftItem = {
-      id: `extra-${Date.now()}`,
-      vaccineId:
-        extraLot.trim(),
-      vaccineName:
-        extraVaccineName.trim(),
-      localStockReported: 0,
-      requestedQuantity: 0,
-      centralStock:
-        extraQuantity,
-      authorizedQuantity:
-        extraQuantity,
-      addedByCentral: true,
-    };
-
-    setItems((prev) => [
-      ...prev,
-      newItem,
-    ]);
-
-    setExtraVaccineName('');
-    setExtraLot('');
-    setExtraQuantity(0);
-    setShowAddVaccine(false);
   };
 
   const removeExtraVaccine = (
@@ -291,24 +386,132 @@ export const RequestAnalysis = () => {
     );
   };
 
+  const openVaccine = (
+    vaccine: VaccineCatalogItem
+  ) => {
+    setSelectedVaccine(
+      vaccine
+    );
+
+    setSelectedLot('');
+
+    setExtraQuantity(1);
+
+    setShowCatalog(false);
+
+    setShowQuantityModal(
+      true
+    );
+  };
+
+  const confirmAddVaccine =
+    () => {
+      if (
+        !selectedVaccine
+      ) {
+        return;
+      }
+
+      if (
+        !selectedLot
+      ) {
+        alert(
+          'Selecione o lote.'
+        );
+
+        return;
+      }
+
+      if (
+        extraQuantity <= 0
+      ) {
+        alert(
+          'Informe uma quantidade maior que zero.'
+        );
+
+        return;
+      }
+
+      if (
+        extraQuantity >
+        selectedVaccine.stock
+      ) {
+        alert(
+          'A quantidade não pode ser maior que o estoque disponível.'
+        );
+
+        return;
+      }
+
+      const newItem: DraftItem =
+        {
+          id: `extra-${Date.now()}`,
+
+          /*
+           * Temporariamente guardamos
+           * o lote no vaccineId para
+           * o memorando imprimir.
+           */
+          vaccineId:
+            selectedLot,
+
+          vaccineName:
+            selectedVaccine.name,
+
+          localStockReported: 0,
+
+          requestedQuantity: 0,
+
+          centralStock:
+            selectedVaccine.stock,
+
+          authorizedQuantity:
+            extraQuantity,
+
+          addedByCentral: true,
+        };
+
+      setItems((prev) => [
+        ...prev,
+        newItem,
+      ]);
+
+      setShowQuantityModal(
+        false
+      );
+
+      setSelectedVaccine(
+        null
+      );
+
+      setSelectedLot('');
+
+      setExtraQuantity(1);
+    };
+
   const confirmAuthorization =
     () => {
       setShowConfirm(false);
+
       setSuccess(true);
     };
 
   if (success) {
-    const generatedMemorandum =
-      'MEM-2026-000005';
+    const
+      generatedMemorandum =
+        'MEM-2026-000005';
 
     return (
       <div className="flex min-h-[65vh] items-center justify-center">
+
         <Card className="max-w-xl text-center">
 
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+
             <ShieldCheck
               size={34}
             />
+
           </div>
 
           <h1 className="mt-5 text-2xl font-bold">
@@ -338,6 +541,21 @@ export const RequestAnalysis = () => {
                 generatedMemorandum
               }
             </p>
+
+            {totals.extra >
+              0 && (
+              <>
+                <p className="mt-3 text-sm text-slate-500">
+                  Vacinas adicionadas pela Central
+                </p>
+
+                <p className="font-bold text-blue-600">
+                  {
+                    totals.extra
+                  }
+                </p>
+              </>
+            )}
 
           </div>
 
@@ -376,6 +594,7 @@ export const RequestAnalysis = () => {
           </div>
 
         </Card>
+
       </div>
     );
   }
@@ -383,6 +602,7 @@ export const RequestAnalysis = () => {
   return (
     <div className="mx-auto max-w-[1400px] space-y-6">
 
+      {/* CABEÇALHO */}
       <header>
 
         <button
@@ -392,9 +612,13 @@ export const RequestAnalysis = () => {
               '/app/solicitacoes'
             )
           }
-          className="mb-3 text-sm font-bold text-brand-600 hover:underline"
+          className="mb-3 flex items-center gap-2 text-sm font-bold text-brand-600 hover:underline"
         >
-          ← Voltar às solicitações
+          <ArrowLeft
+            size={16}
+          />
+
+          Voltar às solicitações
         </button>
 
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -421,11 +645,13 @@ export const RequestAnalysis = () => {
 
       </header>
 
+      {/* DADOS */}
       <Card>
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
 
           <div>
+
             <p className="text-xs font-bold uppercase text-slate-400">
               Unidade
             </p>
@@ -433,9 +659,11 @@ export const RequestAnalysis = () => {
             <p className="mt-1 font-semibold">
               {request.unitName}
             </p>
+
           </div>
 
           <div>
+
             <p className="text-xs font-bold uppercase text-slate-400">
               Solicitante
             </p>
@@ -445,9 +673,11 @@ export const RequestAnalysis = () => {
                 request.requesterName
               }
             </p>
+
           </div>
 
           <div>
+
             <p className="text-xs font-bold uppercase text-slate-400">
               Data
             </p>
@@ -455,9 +685,11 @@ export const RequestAnalysis = () => {
             <p className="mt-1 font-semibold">
               {request.createdAt}
             </p>
+
           </div>
 
           <div>
+
             <p className="text-xs font-bold uppercase text-slate-400">
               Itens
             </p>
@@ -468,21 +700,31 @@ export const RequestAnalysis = () => {
               }{' '}
               vacinas
             </p>
+
           </div>
 
         </div>
 
       </Card>
 
-      <div className="flex items-center justify-between">
+      {/* TÍTULO + BOTÃO */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 
-        <h2 className="text-xl font-bold">
-          Vacinas da liberação
-        </h2>
+        <div>
+
+          <h2 className="text-xl font-bold">
+            Vacinas da liberação
+          </h2>
+
+          <p className="mt-1 text-sm text-slate-500">
+            Confira as quantidades autorizadas e adicione outros itens quando necessário.
+          </p>
+
+        </div>
 
         <Button
           onClick={() =>
-            setShowAddVaccine(true)
+            setShowCatalog(true)
           }
         >
           <Plus
@@ -495,91 +737,323 @@ export const RequestAnalysis = () => {
 
       </div>
 
+      {/* ITENS */}
       <div className="space-y-4">
 
-        {items.map((item) => {
+        {items.map(
+          (item) => {
+            if (
+              item.addedByCentral
+            ) {
+              return (
+                <Card
+                  key={item.id}
+                  className="border-blue-200"
+                >
 
-          if (item.addedByCentral) {
+                  <div className="flex flex-col gap-5">
+
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+
+                      <div>
+
+                        <div className="flex flex-wrap items-center gap-2">
+
+                          <h2 className="text-lg font-bold">
+                            {
+                              item.vaccineName
+                            }
+                          </h2>
+
+                          <span className="rounded-full bg-blue-100 px-2 py-1 text-[10px] font-bold text-blue-700">
+                            Adicionada pela Central
+                          </span>
+
+                        </div>
+
+                        <p className="mt-2 text-sm text-slate-500">
+                          Lote:{' '}
+                          <strong>
+                            {
+                              item.vaccineId
+                            }
+                          </strong>
+                        </p>
+
+                      </div>
+
+                      <Button
+                        variant="outline"
+                        className="text-red-600"
+                        onClick={() =>
+                          removeExtraVaccine(
+                            item.id
+                          )
+                        }
+                      >
+                        <Trash2
+                          size={15}
+                          className="mr-2"
+                        />
+
+                        Remover
+                      </Button>
+
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+
+                      <div className="rounded-xl bg-blue-50 p-4 dark:bg-blue-950/20">
+
+                        <p className="text-xs text-slate-500">
+                          Quantidade liberada
+                        </p>
+
+                        <p className="mt-1 text-2xl font-bold text-blue-600">
+                          {
+                            item.authorizedQuantity
+                          }
+                        </p>
+
+                      </div>
+
+                      <div>
+
+                        <label className="mb-1 block text-xs font-bold text-slate-500">
+                          Alterar quantidade
+                        </label>
+
+                        <input
+                          type="number"
+                          min={1}
+                          max={
+                            item.centralStock
+                          }
+                          value={
+                            item.authorizedQuantity
+                          }
+                          onChange={(
+                            event
+                          ) =>
+                            updateAuthorized(
+                              item.id,
+                              Number(
+                                event
+                                  .target
+                                  .value
+                              )
+                            )
+                          }
+                          className="w-full rounded-lg border border-slate-200 bg-transparent px-3 py-2 outline-none focus:ring-2 focus:ring-brand-500 dark:border-slate-700"
+                        />
+
+                      </div>
+
+                    </div>
+
+                  </div>
+
+                </Card>
+              );
+            }
+
+            const isReduced =
+              item.authorizedQuantity <
+              item.requestedQuantity;
+
+            const maxAllowed =
+              Math.min(
+                item.requestedQuantity,
+                item.centralStock
+              );
+
             return (
               <Card
                 key={item.id}
-                className="border-blue-200"
               >
 
                 <div className="flex flex-col gap-5">
 
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
 
                     <div>
 
-                      <div className="flex flex-wrap items-center gap-2">
+                      <h2 className="text-lg font-bold">
+                        {
+                          item.vaccineName
+                        }
+                      </h2>
 
-                        <h2 className="text-lg font-bold">
-                          {
-                            item.vaccineName
-                          }
-                        </h2>
+                      {item.centralStock <
+                        item.requestedQuantity && (
+                        <p className="mt-1 flex items-center gap-1 text-xs font-semibold text-amber-600">
 
-                        <span className="rounded-full bg-blue-100 px-2 py-1 text-[10px] font-bold text-blue-700">
-                          Adicionada pela Central
-                        </span>
+                          <AlertTriangle
+                            size={14}
+                          />
 
-                      </div>
+                          Estoque da Central inferior ao solicitado
 
-                      <p className="mt-2 text-sm text-slate-500">
-                        Lote:{' '}
-                        <strong>
-                          {
-                            item.vaccineId
-                          }
-                        </strong>
+                        </p>
+                      )}
+
+                    </div>
+
+                    {isReduced ? (
+                      <Badge status="PENDING">
+                        Autorização parcial
+                      </Badge>
+                    ) : (
+                      <Badge status="ACTIVE">
+                        Autorização total
+                      </Badge>
+                    )}
+
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+
+                    <div className="rounded-xl bg-slate-50 p-4 dark:bg-slate-800/50">
+
+                      <p className="text-xs text-slate-500">
+                        Estoque da unidade
+                      </p>
+
+                      <p className="mt-1 text-xl font-bold">
+                        {
+                          item.localStockReported
+                        }
                       </p>
 
                     </div>
 
-                    <Button
-                      variant="outline"
-                      className="text-red-600"
-                      onClick={() =>
-                        removeExtraVaccine(
-                          item.id
-                        )
-                      }
-                    >
-                      <Trash2
-                        size={15}
-                        className="mr-2"
-                      />
+                    <div className="rounded-xl bg-slate-50 p-4 dark:bg-slate-800/50">
 
-                      Remover
-                    </Button>
+                      <p className="text-xs text-slate-500">
+                        Solicitado
+                      </p>
+
+                      <p className="mt-1 text-xl font-bold">
+                        {
+                          item.requestedQuantity
+                        }
+                      </p>
+
+                    </div>
+
+                    <div className="rounded-xl bg-slate-50 p-4 dark:bg-slate-800/50">
+
+                      <p className="text-xs text-slate-500">
+                        Estoque Central
+                      </p>
+
+                      <p className="mt-1 text-xl font-bold">
+                        {
+                          item.centralStock
+                        }
+                      </p>
+
+                    </div>
+
+                    <div className="rounded-xl border border-brand-200 bg-brand-50 p-4 dark:border-brand-900 dark:bg-brand-950/20">
+
+                      <p className="text-xs font-semibold text-brand-600">
+                        Diferença
+                      </p>
+
+                      <p
+                        className={`mt-1 text-xl font-bold ${
+                          isReduced
+                            ? 'text-red-600'
+                            : 'text-emerald-600'
+                        }`}
+                      >
+                        {item.authorizedQuantity -
+                          item.requestedQuantity}
+                      </p>
+
+                    </div>
 
                   </div>
 
-                  <div className="max-w-xs">
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
 
-                    <label className="mb-1 block text-xs font-bold text-slate-500">
-                      Quantidade a enviar
-                    </label>
+                    <div>
 
-                    <input
-                      type="number"
-                      min={1}
-                      value={
-                        item.authorizedQuantity
-                      }
-                      onChange={(
-                        event
-                      ) =>
-                        updateAuthorized(
-                          item.id,
-                          Number(
-                            event.target.value
+                      <label className="mb-1 block text-xs font-bold text-slate-500">
+                        Quantidade autorizada
+                      </label>
+
+                      <div className="flex gap-2">
+
+                        <input
+                          type="number"
+                          min={0}
+                          max={
+                            maxAllowed
+                          }
+                          value={
+                            item.authorizedQuantity
+                          }
+                          onChange={(
+                            event
+                          ) =>
+                            updateAuthorized(
+                              item.id,
+                              Number(
+                                event
+                                  .target
+                                  .value
+                              )
+                            )
+                          }
+                          className="w-full rounded-lg border border-slate-200 bg-transparent px-3 py-2 outline-none focus:ring-2 focus:ring-brand-500 dark:border-slate-700"
+                        />
+
+                        <Button
+                          variant="outline"
+                          onClick={() =>
+                            restoreRequested(
+                              item.id
+                            )
+                          }
+                        >
+                          <RotateCcw
+                            size={16}
+                          />
+                        </Button>
+
+                      </div>
+
+                    </div>
+
+                    <div>
+
+                      <label className="mb-1 block text-xs font-bold text-slate-500">
+                        Observação
+                      </label>
+
+                      <input
+                        type="text"
+                        value={
+                          item.notes ??
+                          ''
+                        }
+                        onChange={(
+                          event
+                        ) =>
+                          updateNotes(
+                            item.id,
+                            event
+                              .target
+                              .value
                           )
-                        )
-                      }
-                      className="w-full rounded-lg border border-slate-200 bg-transparent px-3 py-2 outline-none focus:ring-2 focus:ring-brand-500 dark:border-slate-700"
-                    />
+                        }
+                        placeholder="Observação opcional"
+                        className="w-full rounded-lg border border-slate-200 bg-transparent px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500 dark:border-slate-700"
+                      />
+
+                    </div>
 
                   </div>
 
@@ -588,196 +1062,11 @@ export const RequestAnalysis = () => {
               </Card>
             );
           }
-
-          const isReduced =
-            item.authorizedQuantity <
-            item.requestedQuantity;
-
-          const maxAllowed =
-            Math.min(
-              item.requestedQuantity,
-              item.centralStock
-            );
-
-          return (
-            <Card key={item.id}>
-
-              <div className="flex flex-col gap-5">
-
-                <div className="flex items-start justify-between">
-
-                  <div>
-
-                    <h2 className="text-lg font-bold">
-                      {
-                        item.vaccineName
-                      }
-                    </h2>
-
-                    {item.centralStock <
-                      item.requestedQuantity && (
-                      <p className="mt-1 flex items-center gap-1 text-xs font-semibold text-amber-600">
-                        <AlertTriangle
-                          size={14}
-                        />
-
-                        Estoque da Central inferior ao solicitado
-                      </p>
-                    )}
-
-                  </div>
-
-                  {isReduced ? (
-                    <Badge status="PENDING">
-                      Autorização parcial
-                    </Badge>
-                  ) : (
-                    <Badge status="ACTIVE">
-                      Autorização total
-                    </Badge>
-                  )}
-
-                </div>
-
-                <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-
-                  <div className="rounded-xl bg-slate-50 p-4 dark:bg-slate-800/50">
-                    <p className="text-xs text-slate-500">
-                      Estoque da unidade
-                    </p>
-
-                    <p className="mt-1 text-xl font-bold">
-                      {
-                        item.localStockReported
-                      }
-                    </p>
-                  </div>
-
-                  <div className="rounded-xl bg-slate-50 p-4 dark:bg-slate-800/50">
-                    <p className="text-xs text-slate-500">
-                      Solicitado
-                    </p>
-
-                    <p className="mt-1 text-xl font-bold">
-                      {
-                        item.requestedQuantity
-                      }
-                    </p>
-                  </div>
-
-                  <div className="rounded-xl bg-slate-50 p-4 dark:bg-slate-800/50">
-                    <p className="text-xs text-slate-500">
-                      Estoque Central
-                    </p>
-
-                    <p className="mt-1 text-xl font-bold">
-                      {
-                        item.centralStock
-                      }
-                    </p>
-                  </div>
-
-                  <div className="rounded-xl border border-brand-200 bg-brand-50 p-4">
-                    <p className="text-xs text-brand-600">
-                      Diferença
-                    </p>
-
-                    <p
-                      className={`mt-1 text-xl font-bold ${
-                        isReduced
-                          ? 'text-red-600'
-                          : 'text-emerald-600'
-                      }`}
-                    >
-                      {item.authorizedQuantity -
-                        item.requestedQuantity}
-                    </p>
-                  </div>
-
-                </div>
-
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-
-                  <div>
-
-                    <label className="mb-1 block text-xs font-bold text-slate-500">
-                      Quantidade autorizada
-                    </label>
-
-                    <div className="flex gap-2">
-
-                      <input
-                        type="number"
-                        min={0}
-                        max={maxAllowed}
-                        value={
-                          item.authorizedQuantity
-                        }
-                        onChange={(
-                          event
-                        ) =>
-                          updateAuthorized(
-                            item.id,
-                            Number(
-                              event.target.value
-                            )
-                          )
-                        }
-                        className="w-full rounded-lg border border-slate-200 bg-transparent px-3 py-2 outline-none focus:ring-2 focus:ring-brand-500 dark:border-slate-700"
-                      />
-
-                      <Button
-                        variant="outline"
-                        onClick={() =>
-                          restoreRequested(
-                            item.id
-                          )
-                        }
-                      >
-                        <RotateCcw
-                          size={16}
-                        />
-                      </Button>
-
-                    </div>
-
-                  </div>
-
-                  <div>
-
-                    <label className="mb-1 block text-xs font-bold text-slate-500">
-                      Observação
-                    </label>
-
-                    <input
-                      type="text"
-                      value={
-                        item.notes ?? ''
-                      }
-                      onChange={(
-                        event
-                      ) =>
-                        updateNotes(
-                          item.id,
-                          event.target.value
-                        )
-                      }
-                      placeholder="Observação opcional"
-                      className="w-full rounded-lg border border-slate-200 bg-transparent px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500 dark:border-slate-700"
-                    />
-
-                  </div>
-
-                </div>
-
-              </div>
-
-            </Card>
-          );
-        })}
+        )}
 
       </div>
 
+      {/* RESUMO */}
       <Card>
 
         <h2 className="text-lg font-bold">
@@ -792,7 +1081,9 @@ export const RequestAnalysis = () => {
             </p>
 
             <p className="text-xl font-bold">
-              {totals.requested}
+              {
+                totals.requested
+              }
             </p>
           </div>
 
@@ -802,7 +1093,9 @@ export const RequestAnalysis = () => {
             </p>
 
             <p className="text-xl font-bold text-brand-600">
-              {totals.authorized}
+              {
+                totals.authorized
+              }
             </p>
           </div>
 
@@ -822,7 +1115,9 @@ export const RequestAnalysis = () => {
             </p>
 
             <p className="text-xl font-bold text-amber-600">
-              {totals.partial}
+              {
+                totals.partial
+              }
             </p>
           </div>
 
@@ -832,7 +1127,9 @@ export const RequestAnalysis = () => {
             </p>
 
             <p className="text-xl font-bold text-red-600">
-              {totals.rejected}
+              {
+                totals.rejected
+              }
             </p>
           </div>
 
@@ -842,7 +1139,9 @@ export const RequestAnalysis = () => {
             </p>
 
             <p className="text-xl font-bold text-blue-600">
-              {totals.extra}
+              {
+                totals.extra
+              }
             </p>
           </div>
 
@@ -862,6 +1161,7 @@ export const RequestAnalysis = () => {
               size={16}
               className="mr-2"
             />
+
             Salvar análise
           </Button>
 
@@ -878,6 +1178,7 @@ export const RequestAnalysis = () => {
               size={16}
               className="mr-2"
             />
+
             Rejeitar solicitação
           </Button>
 
@@ -890,6 +1191,7 @@ export const RequestAnalysis = () => {
               size={16}
               className="mr-2"
             />
+
             Autorizar solicitação
           </Button>
 
@@ -897,62 +1199,269 @@ export const RequestAnalysis = () => {
 
       </Card>
 
-      {/* MODAL ADICIONAR VACINA */}
-      {showAddVaccine && (
+      {/* CATÁLOGO */}
+      {showCatalog && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
 
-          <Card className="w-full max-w-lg">
+          <Card className="max-h-[92vh] w-full max-w-6xl overflow-y-auto">
 
-            <div className="flex items-start justify-between">
+            <div className="sticky top-0 z-10 bg-white pb-4 dark:bg-slate-900">
 
-              <div>
+              <div className="flex items-start justify-between gap-3">
 
-                <h3 className="text-xl font-bold">
-                  Adicionar vacina
-                </h3>
+                <div>
 
-                <p className="mt-1 text-sm text-slate-500">
-                  Inclua uma vacina extra na liberação.
-                </p>
+                  <h2 className="text-2xl font-bold">
+                    Catálogo de vacinas
+                  </h2>
+
+                  <p className="mt-1 text-sm text-slate-500">
+                    Selecione uma vacina disponível no Estoque Central.
+                  </p>
+
+                </div>
+
+                <Button
+                  variant="ghost"
+                  onClick={() =>
+                    setShowCatalog(
+                      false
+                    )
+                  }
+                >
+                  ✕
+                </Button>
 
               </div>
 
-              <Button
-                variant="ghost"
-                onClick={() =>
-                  setShowAddVaccine(false)
-                }
-              >
-                ✕
-              </Button>
+              <div className="mt-5 flex flex-col gap-3 md:flex-row">
 
-            </div>
+                <div className="relative flex-1">
 
-            <div className="mt-6 space-y-4">
+                  <Search
+                    size={18}
+                    className="absolute left-3 top-2.5 text-slate-400"
+                  />
 
-              <div>
+                  <input
+                    value={
+                      searchTerm
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setSearchTerm(
+                        event
+                          .target
+                          .value
+                      )
+                    }
+                    placeholder="Buscar vacina..."
+                    className="w-full rounded-lg border border-slate-200 bg-transparent py-2 pl-10 pr-4 outline-none focus:ring-2 focus:ring-brand-500 dark:border-slate-700"
+                  />
 
-                <label className="mb-1 block text-xs font-bold text-slate-500">
-                  Vacina
-                </label>
+                </div>
 
-                <input
-                  type="text"
+                <select
                   value={
-                    extraVaccineName
+                    categoryFilter
                   }
                   onChange={(
                     event
                   ) =>
-                    setExtraVaccineName(
-                      event.target.value
+                    setCategoryFilter(
+                      event
+                        .target
+                        .value as
+                        | 'TODAS'
+                        | VaccineCategory
                     )
                   }
-                  placeholder="Ex.: Influenza"
-                  className="w-full rounded-lg border border-slate-200 bg-transparent px-3 py-2 outline-none focus:ring-2 focus:ring-brand-500 dark:border-slate-700"
-                />
+                  className="rounded-lg border border-slate-200 bg-white px-4 py-2 dark:border-slate-700 dark:bg-slate-900"
+                >
+                  <option value="TODAS">
+                    Todas as categorias
+                  </option>
+
+                  {vaccineCategories.map(
+                    (
+                      category
+                    ) => (
+                      <option
+                        key={
+                          category
+                        }
+                        value={
+                          category
+                        }
+                      >
+                        {
+                          category
+                        }
+                      </option>
+                    )
+                  )}
+
+                </select>
 
               </div>
+
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+
+              {visibleVaccines.map(
+                (vaccine) => (
+                  <Card
+                    key={
+                      vaccine.id
+                    }
+                    className="flex h-full flex-col"
+                  >
+
+                    <div className="flex h-36 items-center justify-center overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-800">
+
+                      {vaccine.imageUrl ? (
+                        <img
+                          src={
+                            vaccine.imageUrl
+                          }
+                          alt={
+                            vaccine.name
+                          }
+                          className="h-full w-full object-contain p-2"
+                        />
+                      ) : (
+                        <div className="text-center text-slate-400">
+
+                          <Syringe
+                            size={38}
+                            className="mx-auto"
+                          />
+
+                          <p className="mt-2 text-xs">
+                            Sem foto
+                          </p>
+
+                        </div>
+                      )}
+
+                    </div>
+
+                    <div className="mt-4 flex-1">
+
+                      <h3 className="font-bold">
+                        {
+                          vaccine.name
+                        }
+                      </h3>
+
+                      <p className="mt-1 text-xs text-slate-500">
+                        {
+                          vaccine.category
+                        }
+                      </p>
+
+                      <div className="mt-4 flex items-center gap-2 rounded-lg bg-slate-50 p-3 dark:bg-slate-800/50">
+
+                        <Package
+                          size={17}
+                          className="text-brand-600"
+                        />
+
+                        <div>
+
+                          <p className="text-[10px] uppercase text-slate-400">
+                            Estoque
+                          </p>
+
+                          <p className="font-bold text-brand-600">
+                            {vaccine.stock.toLocaleString(
+                              'pt-BR'
+                            )}
+                          </p>
+
+                        </div>
+
+                      </div>
+
+                    </div>
+
+                    <Button
+                      className="mt-4 w-full"
+                      disabled={
+                        vaccine.stock <=
+                        0
+                      }
+                      onClick={() =>
+                        openVaccine(
+                          vaccine
+                        )
+                      }
+                    >
+                      {vaccine.stock >
+                      0
+                        ? 'Selecionar'
+                        : 'Sem estoque'}
+                    </Button>
+
+                  </Card>
+                )
+              )}
+
+            </div>
+
+            {visibleVaccines.length ===
+              0 && (
+              <div className="py-12 text-center text-slate-500">
+                Nenhuma vacina encontrada.
+              </div>
+            )}
+
+          </Card>
+
+        </div>
+      )}
+
+      {/* QUANTIDADE / LOTE */}
+      {showQuantityModal &&
+        selectedVaccine && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
+
+          <Card className="w-full max-w-lg">
+
+            <h2 className="text-xl font-bold">
+              Adicionar à liberação
+            </h2>
+
+            <p className="mt-1 text-sm text-slate-500">
+              {
+                selectedVaccine.name
+              }
+            </p>
+
+            <div className="mt-5 flex h-44 items-center justify-center overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-800">
+
+              {selectedVaccine.imageUrl ? (
+                <img
+                  src={
+                    selectedVaccine.imageUrl
+                  }
+                  alt={
+                    selectedVaccine.name
+                  }
+                  className="h-full w-full object-contain p-3"
+                />
+              ) : (
+                <Syringe
+                  size={46}
+                  className="text-slate-400"
+                />
+              )}
+
+            </div>
+
+            <div className="mt-5 space-y-4">
 
               <div>
 
@@ -962,15 +1471,19 @@ export const RequestAnalysis = () => {
 
                 <input
                   type="text"
-                  value={extraLot}
+                  value={
+                    selectedLot
+                  }
                   onChange={(
                     event
                   ) =>
-                    setExtraLot(
-                      event.target.value
+                    setSelectedLot(
+                      event
+                        .target
+                        .value
                     )
                   }
-                  placeholder="Ex.: 2601400"
+                  placeholder="Informe o lote"
                   className="w-full rounded-lg border border-slate-200 bg-transparent px-3 py-2 outline-none focus:ring-2 focus:ring-brand-500 dark:border-slate-700"
                 />
 
@@ -985,6 +1498,9 @@ export const RequestAnalysis = () => {
                 <input
                   type="number"
                   min={1}
+                  max={
+                    selectedVaccine.stock
+                  }
                   value={
                     extraQuantity
                   }
@@ -993,12 +1509,21 @@ export const RequestAnalysis = () => {
                   ) =>
                     setExtraQuantity(
                       Number(
-                        event.target.value
+                        event
+                          .target
+                          .value
                       )
                     )
                   }
                   className="w-full rounded-lg border border-slate-200 bg-transparent px-3 py-2 outline-none focus:ring-2 focus:ring-brand-500 dark:border-slate-700"
                 />
+
+                <p className="mt-1 text-xs text-slate-400">
+                  Disponível:{' '}
+                  {
+                    selectedVaccine.stock
+                  }
+                </p>
 
               </div>
 
@@ -1008,22 +1533,29 @@ export const RequestAnalysis = () => {
 
               <Button
                 variant="outline"
-                onClick={() =>
-                  setShowAddVaccine(false)
-                }
+                onClick={() => {
+                  setShowQuantityModal(
+                    false
+                  );
+
+                  setShowCatalog(
+                    true
+                  );
+                }}
               >
-                Cancelar
+                Voltar
               </Button>
 
               <Button
                 onClick={
-                  addExtraVaccine
+                  confirmAddVaccine
                 }
               >
                 <Plus
                   size={16}
                   className="mr-2"
                 />
+
                 Adicionar
               </Button>
 
@@ -1034,9 +1566,9 @@ export const RequestAnalysis = () => {
         </div>
       )}
 
-      {/* MODAL CONFIRMAR */}
+      {/* CONFIRMAR AUTORIZAÇÃO */}
       {showConfirm && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
 
           <Card className="w-full max-w-md">
 
@@ -1064,14 +1596,18 @@ export const RequestAnalysis = () => {
                 <strong>
                   Total solicitado:
                 </strong>{' '}
-                {totals.requested}
+                {
+                  totals.requested
+                }
               </p>
 
               <p>
                 <strong>
                   Total liberado:
                 </strong>{' '}
-                {totals.authorized}
+                {
+                  totals.authorized
+                }
               </p>
 
               <p>
@@ -1088,7 +1624,9 @@ export const RequestAnalysis = () => {
               <Button
                 variant="outline"
                 onClick={() =>
-                  setShowConfirm(false)
+                  setShowConfirm(
+                    false
+                  )
                 }
               >
                 Cancelar
