@@ -10,6 +10,7 @@ import { MyOrders } from './pages/municipal/MyOrders';
 import { Requests } from './pages/municipal/Requests';
 import { RequestAnalysis } from './pages/municipal/RequestAnalysis';
 import { Memorandum } from './pages/municipal/MemorandumValidation';
+import { CentralStock } from './pages/municipal/CentralStock';
 
 function Protected({ superAdmin = false }: { superAdmin?: boolean }) {
   const { user } = useAuth();
@@ -27,6 +28,11 @@ export default function App() {
     <Route path="/" element={<Navigate to="/login" replace/>}/>
     <Route path="*" element={<div className="grid min-h-screen place-items-center text-2xl font-bold">404 · Página não encontrada</div>}/>
   <Route path="/app/pedir-vacina" element={<OrderVaccines />} />
+  
+  <Route
+  path="/app/estoque"
+  element={<CentralStock />}
+/>
 <Route
   path="/app/solicitacoes"
   element={<Requests />}
@@ -40,6 +46,7 @@ export default function App() {
 <Route
   path="/app/memorando/:protocol"
   element={<Memorandum />}
+  
 />
 </Routes>
 }
