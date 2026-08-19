@@ -489,12 +489,130 @@ export const RequestAnalysis = () => {
       setExtraQuantity(1);
     };
 
-  const confirmAuthorization =
-    () => {
-      setShowConfirm(false);
+  const confirmAuthorization = () => {
+  try {
+    const LOTS_STORAGE_KEY =
+      'imuniza-central-lots';
 
-      setSuccess(true);
-    };
+    const MOVEMENTS_STORAGE_KEY =
+      'imuniza-central-movements';
+
+    const savedLots =
+      localStorage.getItem(
+        LOTS_STORAGE_KEY
+      );
+
+    const savedMovements =
+      localStorage.getItem(
+        MOVEMENTS_STORAGE_KEY
+      );
+
+    const lots = savedLots
+      ? JSON.parse(savedLots)
+      : [];
+
+    const movements =
+      savedMovements
+        ? JSON.parse(
+            savedMovements
+          )
+        : [];
+
+    const updatedLots = [
+      ...lots,
+    ];
+
+    const newMovements = [
+      ...movements,
+    ];
+
+    for (const item of items) {
+      if (
+        item.authorizedQuantity <= 0
+      ) {
+        continue;
+      }
+
+      const lotIndex =
+        updatedLots.findIndex(
+          (lot) =>
+            lot.lotNumber ===
+              item.vaccineId
+        );
+
+      if (lotIndex < 0) {
+        alert(
+          `Lote não encontrado para ${item.vaccineName}.`
+        );
+
+        return;
+      }
+
+      const lot =
+        updatedLots[
+          lotIndex
+        ];
+
+      if (
+        lot.doses <
+        item.authorizedQuantity
+      ) {
+        alert(
+          `Estoque insuficiente para ${item.vaccineName}. Disponível: ${lot.doses} doses.`
+        );
+
+        return;
+      }
+
+      updatedLots[
+        lotIndex
+      ] = {
+        ...lot,
+
+        doses:
+          lot.doses -
+          item.authorizedQuantity,
+      };
+
+      newMovements.unshift({
+        id: `mov-${Date.now()}-${item.id}`,
+        type: 'SAIDA',
+        vaccineId:
+          lot.vaccineId,
+        lotNumber:
+          lot.lotNumber,
+        doses:
+          item.authorizedQuantity,
+        date:
+          new Date().toISOString(),
+        description:
+          `Saída referente à solicitação ${request.protocol} - ${request.unitName}`,
+      });
+    }
+
+    localStorage.setItem(
+      LOTS_STORAGE_KEY,
+      JSON.stringify(
+        updatedLots
+      )
+    );
+
+    localStorage.setItem(
+      MOVEMENTS_STORAGE_KEY,
+      JSON.stringify(
+        newMovements
+      )
+    );
+
+    setShowConfirm(false);
+
+    setSuccess(true);
+  } catch {
+    alert(
+      'Não foi possível concluir a autorização.'
+    );
+  }
+};
 
   if (success) {
     const
