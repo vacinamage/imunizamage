@@ -2,17 +2,17 @@ import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import {
-  RotateCcw,
-  Save,
-  ShieldCheck,
-  XCircle,
   AlertTriangle,
-  Plus,
-  Trash2,
-  Search,
-  Syringe,
-  ArrowLeft,
+  CheckCircle2,
+  ClipboardList,
   Package,
+  Plus,
+  RotateCcw,
+  Search,
+  ShieldCheck,
+  Syringe,
+  Trash2,
+  XCircle,
 } from 'lucide-react';
 
 import {
@@ -37,15 +37,18 @@ import {
    TIPOS
 ========================================================= */
 
+type LotAllocation = {
+  lotId: string;
+  lotNumber: string;
+  expirationDate: string;
+  doses: number;
+};
+
 type DraftItem = RequestItem & {
   authorizedQuantity: number;
   notes?: string;
   addedByCentral?: boolean;
-
-  /*
-   * Lote escolhido pelo coordenador.
-   */
-  lotNumber?: string;
+  lotAllocations?: LotAllocation[];
 };
 
 type VaccineOverride = {
@@ -92,40 +95,38 @@ const MOVEMENTS_STORAGE_KEY =
   'imuniza-central-movements';
 
 /* =========================================================
-   CARREGAMENTO
+   LOAD
 ========================================================= */
 
-const loadOverrides =
-  (): VaccineOverrides => {
-    try {
-      const saved =
-        localStorage.getItem(
-          VACCINE_STORAGE_KEY
-        );
+const loadOverrides = (): VaccineOverrides => {
+  try {
+    const saved =
+      localStorage.getItem(
+        VACCINE_STORAGE_KEY
+      );
 
-      return saved
-        ? JSON.parse(saved)
-        : {};
-    } catch {
-      return {};
-    }
-  };
+    return saved
+      ? JSON.parse(saved)
+      : {};
+  } catch {
+    return {};
+  }
+};
 
-const loadCentralLots =
-  (): CentralLot[] => {
-    try {
-      const saved =
-        localStorage.getItem(
-          LOTS_STORAGE_KEY
-        );
+const loadCentralLots = (): CentralLot[] => {
+  try {
+    const saved =
+      localStorage.getItem(
+        LOTS_STORAGE_KEY
+      );
 
-      return saved
-        ? JSON.parse(saved)
-        : [];
-    } catch {
-      return [];
-    }
-  };
+    return saved
+      ? JSON.parse(saved)
+      : [];
+  } catch {
+    return [];
+  }
+};
 
 /* =========================================================
    COMPONENTE
@@ -146,12 +147,6 @@ export const RequestAnalysis = () => {
         request?.items.map(
           (item) => ({
             ...item,
-
-            /*
-             * O lote será escolhido
-             * na análise.
-             */
-            lotNumber: '',
           })
         ) ?? []
     );
@@ -172,22 +167,12 @@ export const RequestAnalysis = () => {
   ] = useState(false);
 
   const [
-    success,
-    setSuccess,
-  ] = useState(false);
-
-  const [
     selectedVaccine,
     setSelectedVaccine,
   ] =
     useState<VaccineCatalogItem | null>(
       null
     );
-
-  const [
-    selectedLot,
-    setSelectedLot,
-  ] = useState('');
 
   const [
     extraDoses,
@@ -214,10 +199,6 @@ export const RequestAnalysis = () => {
       loadOverrides
     );
 
-  /*
-   * Os lotes são carregados do mesmo
-   * localStorage usado pelo Estoque Central.
-   */
   const [
     centralLots,
     setCentralLots,
@@ -226,42 +207,39 @@ export const RequestAnalysis = () => {
       loadCentralLots
     );
 
+  const [
+    success,
+    setSuccess,
+  ] = useState(false);
+
   /* =======================================================
-     CATÁLOGO COM ESTOQUE REAL
+     CATÁLOGO
   ======================================================= */
 
   const vaccines =
     useMemo(() => {
       return vaccineCatalog.map(
         (vaccine) => {
-          const vaccineLots =
-            centralLots.filter(
-              (lot) =>
-                lot.vaccineId ===
-                  vaccine.id &&
-                lot.doses > 0
-            );
-
           const stock =
-            vaccineLots.reduce(
-              (total, lot) =>
-                total +
-                lot.doses,
-              0
-            );
+            centralLots
+              .filter(
+                (lot) =>
+                  lot.vaccineId ===
+                    vaccine.id &&
+                  lot.doses > 0
+              )
+              .reduce(
+                (total, lot) =>
+                  total +
+                  lot.doses,
+                0
+              );
 
           return {
             ...vaccine,
-
             ...vaccineOverrides[
               vaccine.id
             ],
-
-            /*
-             * Sobrescreve o estoque
-             * fictício pelo estoque
-             * calculado nos lotes.
-             */
             stock,
           };
         }
@@ -270,10 +248,6 @@ export const RequestAnalysis = () => {
       vaccineOverrides,
       centralLots,
     ]);
-
-  /* =======================================================
-     CATÁLOGO FILTRADO
-  ======================================================= */
 
   const visibleVaccines =
     useMemo(() => {
@@ -310,138 +284,77 @@ export const RequestAnalysis = () => {
     ]);
 
   /* =======================================================
-     RESUMO
-  ======================================================= */
-
-  const totals =
-    useMemo(() => {
-      const originals =
-        items.filter(
-          (item) =>
-            !item.addedByCentral
-        );
-
-      const extras =
-        items.filter(
-          (item) =>
-            item.addedByCentral
-        );
-
-      const requested =
-        originals.reduce(
-          (total, item) =>
-            total +
-            item.requestedQuantity,
-          0
-        );
-
-      const authorized =
-        items.reduce(
-          (total, item) =>
-            total +
-            item.authorizedQuantity,
-          0
-        );
-
-      const full =
-        originals.filter(
-          (item) =>
-            item.authorizedQuantity ===
-            item.requestedQuantity
-        ).length;
-
-      const partial =
-        originals.filter(
-          (item) =>
-            item.authorizedQuantity >
-              0 &&
-            item.authorizedQuantity <
-              item.requestedQuantity
-        ).length;
-
-      const rejected =
-        originals.filter(
-          (item) =>
-            item.authorizedQuantity ===
-            0
-        ).length;
-
-      return {
-        requested,
-        authorized,
-        full,
-        partial,
-        rejected,
-        extra:
-          extras.length,
-      };
-    }, [items]);
-
-  if (!request) {
-    return (
-      <Card>
-        <h1 className="text-xl font-bold">
-          Solicitação não encontrada
-        </h1>
-
-        <Button
-          className="mt-4"
-          onClick={() =>
-            navigate(
-              '/app/solicitacoes'
-            )
-          }
-        >
-          Voltar
-        </Button>
-      </Card>
-    );
-  }
-
-  /* =======================================================
-     IDENTIFICAR VACINA DO CATÁLOGO
+     VACINA DO ITEM
   ======================================================= */
 
   const findCatalogVaccine = (
     item: DraftItem
   ) => {
-    /*
-     * Primeiro tenta pelo vaccineId.
-     */
-    let vaccine =
+    const byId =
       vaccines.find(
-        (v) =>
-          v.id ===
+        (vaccine) =>
+          vaccine.id ===
           item.vaccineId
       );
 
-    if (vaccine) {
-      return vaccine;
+    if (byId) {
+      return byId;
     }
 
-    /*
-     * Se os mocks antigos tiverem IDs
-     * diferentes, procura pelo nome.
-     */
-    vaccine =
-      vaccines.find(
-        (v) =>
-          v.name
-            .trim()
-            .toLowerCase() ===
-          item.vaccineName
-            .trim()
-            .toLowerCase()
-      );
-
-    return vaccine;
+    return vaccines.find(
+      (vaccine) =>
+        vaccine.name
+          .trim()
+          .toLowerCase() ===
+        item.vaccineName
+          .trim()
+          .toLowerCase()
+    );
   };
 
   /* =======================================================
-     LOTES DISPONÍVEIS DO ITEM
+     LOTES VÁLIDOS - FEFO
   ======================================================= */
 
-  const getAvailableLots = (
+  const getValidLotsByVaccine = (
+    vaccineId: string
+  ) => {
+    const today =
+      new Date();
+
+    today.setHours(
+      0,
+      0,
+      0,
+      0
+    );
+
+    return centralLots
+      .filter((lot) => {
+        const expiration =
+          new Date(
+            `${lot.expirationDate}T00:00:00`
+          );
+
+        return (
+          lot.vaccineId ===
+            vaccineId &&
+          lot.doses > 0 &&
+          expiration >= today
+        );
+      })
+      .sort(
+        (a, b) =>
+          new Date(
+            `${a.expirationDate}T00:00:00`
+          ).getTime() -
+          new Date(
+            `${b.expirationDate}T00:00:00`
+          ).getTime()
+      );
+  };
+
+  const getAvailableDoses = (
     item: DraftItem
   ) => {
     const vaccine =
@@ -450,40 +363,20 @@ export const RequestAnalysis = () => {
       );
 
     if (!vaccine) {
-      return [];
+      return 0;
     }
 
-    return centralLots.filter(
-      (lot) =>
-        lot.vaccineId ===
-          vaccine.id &&
-        lot.doses > 0
+    return getValidLotsByVaccine(
+      vaccine.id
+    ).reduce(
+      (total, lot) =>
+        total + lot.doses,
+      0
     );
   };
 
   /* =======================================================
-     ALTERAR LOTE
-  ======================================================= */
-
-  const updateLot = (
-    id: string,
-    lotNumber: string
-  ) => {
-    setItems((previous) =>
-      previous.map(
-        (item) =>
-          item.id === id
-            ? {
-                ...item,
-                lotNumber,
-              }
-            : item
-      )
-    );
-  };
-
-  /* =======================================================
-     ALTERAR DOSES AUTORIZADAS
+     ALTERAR DOSES
   ======================================================= */
 
   const updateAuthorized = (
@@ -499,48 +392,18 @@ export const RequestAnalysis = () => {
             return item;
           }
 
-          const selected =
-            centralLots.find(
-              (lot) =>
-                lot.lotNumber ===
-                item.lotNumber
+          const available =
+            getAvailableDoses(
+              item
             );
-
-          /*
-           * Sem lote selecionado,
-           * não libera doses.
-           */
-          if (!selected) {
-            return {
-              ...item,
-              authorizedQuantity:
-                0,
-            };
-          }
-
-          if (
-            item.addedByCentral
-          ) {
-            return {
-              ...item,
-
-              authorizedQuantity:
-                Math.max(
-                  0,
-                  Math.min(
-                    rawValue ||
-                      0,
-                    selected.doses
-                  )
-                ),
-            };
-          }
 
           const maxAllowed =
-            Math.min(
-              item.requestedQuantity,
-              selected.doses
-            );
+            item.addedByCentral
+              ? available
+              : Math.min(
+                  item.requestedQuantity,
+                  available
+                );
 
           return {
             ...item,
@@ -549,8 +412,7 @@ export const RequestAnalysis = () => {
               Math.max(
                 0,
                 Math.min(
-                  rawValue ||
-                    0,
+                  rawValue || 0,
                   maxAllowed
                 )
               ),
@@ -560,9 +422,34 @@ export const RequestAnalysis = () => {
     );
   };
 
-  /* =======================================================
-     OBSERVAÇÃO
-  ======================================================= */
+  const restoreRequested = (
+    id: string
+  ) => {
+    setItems((previous) =>
+      previous.map(
+        (item) => {
+          if (
+            item.id !== id ||
+            item.addedByCentral
+          ) {
+            return item;
+          }
+
+          return {
+            ...item,
+
+            authorizedQuantity:
+              Math.min(
+                item.requestedQuantity,
+                getAvailableDoses(
+                  item
+                )
+              ),
+          };
+        }
+      )
+    );
+  };
 
   const updateNotes = (
     id: string,
@@ -581,56 +468,6 @@ export const RequestAnalysis = () => {
     );
   };
 
-  /* =======================================================
-     RESTAURAR DOSES SOLICITADAS
-  ======================================================= */
-
-  const restoreRequested = (
-    id: string
-  ) => {
-    setItems((previous) =>
-      previous.map(
-        (item) => {
-          if (
-            item.id !== id ||
-            item.addedByCentral
-          ) {
-            return item;
-          }
-
-          const lot =
-            centralLots.find(
-              (currentLot) =>
-                currentLot.lotNumber ===
-                item.lotNumber
-            );
-
-          if (!lot) {
-            return {
-              ...item,
-              authorizedQuantity:
-                0,
-            };
-          }
-
-          return {
-            ...item,
-
-            authorizedQuantity:
-              Math.min(
-                item.requestedQuantity,
-                lot.doses
-              ),
-          };
-        }
-      )
-    );
-  };
-
-  /* =======================================================
-     REMOVER VACINA EXTRA
-  ======================================================= */
-
   const removeExtraVaccine = (
     id: string
   ) => {
@@ -642,10 +479,6 @@ export const RequestAnalysis = () => {
     );
   };
 
-  /* =======================================================
-     ABRIR VACINA EXTRA
-  ======================================================= */
-
   const openVaccine = (
     vaccine:
       VaccineCatalogItem
@@ -654,211 +487,195 @@ export const RequestAnalysis = () => {
       vaccine
     );
 
-    setSelectedLot('');
-
     setExtraDoses(1);
 
     setShowCatalog(false);
 
-    setShowExtraModal(
-      true
-    );
+    setShowExtraModal(true);
   };
 
-  /* =======================================================
-     LOTES DA VACINA EXTRA
-  ======================================================= */
+  const confirmAddVaccine = () => {
+    if (
+      !selectedVaccine
+    ) {
+      return;
+    }
 
-  const extraVaccineLots =
-    selectedVaccine
-      ? centralLots.filter(
-          (lot) =>
-            lot.vaccineId ===
-              selectedVaccine.id &&
-            lot.doses > 0
-        )
-      : [];
-
-  const selectedExtraLot =
-    extraVaccineLots.find(
-      (lot) =>
-        lot.lotNumber ===
-        selectedLot
-    );
-
-  /* =======================================================
-     ADICIONAR VACINA EXTRA
-  ======================================================= */
-
-  const confirmAddVaccine =
-    () => {
-      if (
-        !selectedVaccine
-      ) {
-        return;
-      }
-
-      if (!selectedLot) {
-        alert(
-          'Selecione o lote.'
-        );
-
-        return;
-      }
-
-      if (
-        !selectedExtraLot
-      ) {
-        alert(
-          'Lote não encontrado.'
-        );
-
-        return;
-      }
-
-      if (
-        extraDoses <= 0
-      ) {
-        alert(
-          'Informe o número de doses.'
-        );
-
-        return;
-      }
-
-      if (
-        extraDoses >
-        selectedExtraLot.doses
-      ) {
-        alert(
-          `Esse lote possui somente ${selectedExtraLot.doses} doses disponíveis.`
-        );
-
-        return;
-      }
-
-      const newItem:
-        DraftItem = {
-        id: `extra-${Date.now()}`,
-
-        /*
-         * Agora vaccineId permanece
-         * sendo o ID verdadeiro da vacina.
-         */
-        vaccineId:
-          selectedVaccine.id,
-
-        vaccineName:
-          selectedVaccine.name,
-
-        localStockReported: 0,
-
-        requestedQuantity: 0,
-
-        centralStock:
-          selectedVaccine.stock,
-
-        authorizedQuantity:
-          extraDoses,
-
-        lotNumber:
-          selectedLot,
-
-        addedByCentral:
-          true,
-      };
-
-      setItems(
-        (previous) => [
-          ...previous,
-          newItem,
-        ]
+    const available =
+      getValidLotsByVaccine(
+        selectedVaccine.id
+      ).reduce(
+        (total, lot) =>
+          total +
+          lot.doses,
+        0
       );
 
-      setSelectedVaccine(
-        null
+    if (
+      extraDoses <= 0
+    ) {
+      alert(
+        'Informe o número de doses.'
       );
 
-      setSelectedLot('');
+      return;
+    }
 
-      setExtraDoses(1);
-
-      setShowExtraModal(
-        false
+    if (
+      extraDoses >
+      available
+    ) {
+      alert(
+        `Estoque insuficiente. Disponível: ${available} doses.`
       );
+
+      return;
+    }
+
+    const newItem:
+      DraftItem = {
+      id: `extra-${Date.now()}`,
+
+      vaccineId:
+        selectedVaccine.id,
+
+      vaccineName:
+        selectedVaccine.name,
+
+      localStockReported: 0,
+
+      requestedQuantity: 0,
+
+      centralStock:
+        available,
+
+      authorizedQuantity:
+        extraDoses,
+
+      addedByCentral:
+        true,
     };
 
-  /* =======================================================
-     VALIDAR ANTES DA AUTORIZAÇÃO
+    setItems(
+      (previous) => [
+        ...previous,
+        newItem,
+      ]
+    );
+
+    setSelectedVaccine(
+      null
+    );
+
+    setExtraDoses(1);
+
+    setShowExtraModal(false);
+  };
+    /* =======================================================
+     RESUMO
   ======================================================= */
 
-  const validateAuthorization =
-    () => {
-      const authorizedItems =
+  const totals =
+    useMemo(() => {
+      const originals =
         items.filter(
           (item) =>
-            item.authorizedQuantity >
+            !item.addedByCentral
+        );
+
+      const extras =
+        items.filter(
+          (item) =>
+            item.addedByCentral
+        );
+
+      return {
+        requested:
+          originals.reduce(
+            (total, item) =>
+              total +
+              item.requestedQuantity,
             0
+          ),
+
+        authorized:
+          items.reduce(
+            (total, item) =>
+              total +
+              item.authorizedQuantity,
+            0
+          ),
+
+        full:
+          originals.filter(
+            (item) =>
+              item.authorizedQuantity ===
+              item.requestedQuantity
+          ).length,
+
+        partial:
+          originals.filter(
+            (item) =>
+              item.authorizedQuantity >
+                0 &&
+              item.authorizedQuantity <
+                item.requestedQuantity
+          ).length,
+
+        rejected:
+          originals.filter(
+            (item) =>
+              item.authorizedQuantity ===
+              0
+          ).length,
+
+        extra:
+          extras.length,
+      };
+    }, [items]);
+
+  const validateAuthorization = () => {
+    const authorizedItems =
+      items.filter(
+        (item) =>
+          item.authorizedQuantity >
+          0
+      );
+
+    if (
+      authorizedItems.length ===
+      0
+    ) {
+      alert(
+        'Nenhuma dose foi autorizada.'
+      );
+
+      return false;
+    }
+
+    for (
+      const item of
+      authorizedItems
+    ) {
+      const available =
+        getAvailableDoses(
+          item
         );
 
       if (
-        authorizedItems.length ===
-        0
+        available <
+        item.authorizedQuantity
       ) {
         alert(
-          'Nenhuma dose foi autorizada.'
+          `Estoque insuficiente para ${item.vaccineName}. Disponível: ${available} doses.`
         );
 
         return false;
       }
+    }
 
-      for (
-        const item of
-        authorizedItems
-      ) {
-        if (
-          !item.lotNumber
-        ) {
-          alert(
-            `Selecione o lote de ${item.vaccineName}.`
-          );
-
-          return false;
-        }
-
-        const lot =
-          centralLots.find(
-            (currentLot) =>
-              currentLot.lotNumber ===
-              item.lotNumber
-          );
-
-        if (!lot) {
-          alert(
-            `O lote de ${item.vaccineName} não foi encontrado.`
-          );
-
-          return false;
-        }
-
-        if (
-          lot.doses <
-          item.authorizedQuantity
-        ) {
-          alert(
-            `Estoque insuficiente para ${item.vaccineName}. Lote ${lot.lotNumber}: ${lot.doses} doses disponíveis.`
-          );
-
-          return false;
-        }
-      }
-
-      return true;
-    };
-
-  /* =======================================================
-     ABRIR CONFIRMAÇÃO
-  ======================================================= */
+    return true;
+  };
 
   const openAuthorizationConfirm =
     () => {
@@ -872,8 +689,7 @@ export const RequestAnalysis = () => {
     };
 
   /* =======================================================
-     CONFIRMAR AUTORIZAÇÃO
-     BAIXA ESTOQUE + MOVIMENTAÇÃO
+     AUTORIZAÇÃO FEFO
   ======================================================= */
 
   const confirmAuthorization =
@@ -882,7 +698,6 @@ export const RequestAnalysis = () => {
         !validateAuthorization()
       ) {
         setShowConfirm(false);
-
         return;
       }
 
@@ -910,9 +725,27 @@ export const RequestAnalysis = () => {
         const newMovements =
           [...movements];
 
+        const updatedItems:
+          DraftItem[] =
+          items.map(
+            (item) => ({
+              ...item,
+              lotAllocations:
+                [] as LotAllocation[],
+            })
+          );
+
         for (
-          const item of items
+          let itemIndex = 0;
+          itemIndex <
+          updatedItems.length;
+          itemIndex++
         ) {
+          const item =
+            updatedItems[
+              itemIndex
+            ];
+
           if (
             item.authorizedQuantity <=
             0
@@ -920,72 +753,150 @@ export const RequestAnalysis = () => {
             continue;
           }
 
-          const lotIndex =
-            updatedLots.findIndex(
-              (lot) =>
-                lot.lotNumber ===
-                item.lotNumber
+          const vaccine =
+            findCatalogVaccine(
+              item
             );
 
-          if (
-            lotIndex < 0
+          const vaccineId =
+            vaccine?.id ||
+            item.vaccineId;
+
+          const today =
+            new Date();
+
+          today.setHours(
+            0,
+            0,
+            0,
+            0
+          );
+
+          const validLots =
+            updatedLots
+              .filter(
+                (lot) => {
+                  const expiration =
+                    new Date(
+                      `${lot.expirationDate}T00:00:00`
+                    );
+
+                  return (
+                    lot.vaccineId ===
+                      vaccineId &&
+                    lot.doses > 0 &&
+                    expiration >=
+                      today
+                  );
+                }
+              )
+              .sort(
+                (a, b) =>
+                  new Date(
+                    `${a.expirationDate}T00:00:00`
+                  ).getTime() -
+                  new Date(
+                    `${b.expirationDate}T00:00:00`
+                  ).getTime()
+              );
+
+          let remaining =
+            item.authorizedQuantity;
+
+          const allocations:
+            LotAllocation[] =
+            [];
+
+          for (
+            const availableLot of
+            validLots
           ) {
-            alert(
-              `Lote não encontrado para ${item.vaccineName}.`
-            );
+            if (
+              remaining <= 0
+            ) {
+              break;
+            }
 
-            return;
-          }
+            const lotIndex =
+              updatedLots.findIndex(
+                (lot) =>
+                  lot.id ===
+                  availableLot.id
+              );
 
-          const lot =
+            if (
+              lotIndex < 0
+            ) {
+              continue;
+            }
+
+            const currentLot =
+              updatedLots[
+                lotIndex
+              ];
+
+            const dosesFromLot =
+              Math.min(
+                currentLot.doses,
+                remaining
+              );
+
             updatedLots[
               lotIndex
-            ];
+            ] = {
+              ...currentLot,
 
-          if (
-            lot.doses <
-            item.authorizedQuantity
-          ) {
-            alert(
-              `Estoque insuficiente para ${item.vaccineName}.`
-            );
+              doses:
+                currentLot.doses -
+                dosesFromLot,
+            };
 
-            return;
-          }
+            allocations.push({
+              lotId:
+                currentLot.id,
 
-          updatedLots[
-            lotIndex
-          ] = {
-            ...lot,
+              lotNumber:
+                currentLot.lotNumber,
 
-            doses:
-              lot.doses -
-              item.authorizedQuantity,
-          };
+              expirationDate:
+                currentLot.expirationDate,
 
-          newMovements.unshift(
-            {
-              id: `mov-${Date.now()}-${item.id}`,
+              doses:
+                dosesFromLot,
+            });
+
+            newMovements.unshift({
+              id: `mov-${Date.now()}-${item.id}-${currentLot.id}`,
 
               type: 'SAIDA',
 
-              vaccineId:
-                lot.vaccineId,
+              vaccineId,
 
               lotNumber:
-                lot.lotNumber,
+                currentLot.lotNumber,
 
               doses:
-                item.authorizedQuantity,
+                dosesFromLot,
 
               date:
                 new Date()
                   .toISOString(),
 
               description:
-                `Solicitação ${request.protocol} - ${request.unitName}`,
-            }
-          );
+                `Solicitação ${request?.protocol ?? protocol}`,
+            });
+
+            remaining -=
+              dosesFromLot;
+          }
+
+          updatedItems[
+            itemIndex
+          ] = {
+            ...item,
+            lotAllocations:
+              allocations,
+          };
         }
 
         localStorage.setItem(
@@ -1002,11 +913,12 @@ export const RequestAnalysis = () => {
           )
         );
 
-        /*
-         * Atualiza também nesta tela.
-         */
         setCentralLots(
           updatedLots
+        );
+
+        setItems(
+          updatedItems
         );
 
         setShowConfirm(false);
@@ -1020,59 +932,106 @@ export const RequestAnalysis = () => {
     };
 
   /* =======================================================
-     AUTORIZAÇÃO CONCLUÍDA
+     NÃO ENCONTRADA
+  ======================================================= */
+
+  if (!request) {
+    return (
+      <Card className="mx-auto max-w-2xl rounded-3xl p-8">
+
+        <h1 className="text-2xl font-black">
+          Solicitação não encontrada
+        </h1>
+
+        <p className="mt-2 text-slate-500">
+          Não foi possível localizar esta solicitação.
+        </p>
+
+        <Button
+          className="mt-6"
+          onClick={() =>
+            navigate(
+              '/app/solicitacoes'
+            )
+          }
+        >
+          Voltar às solicitações
+        </Button>
+
+      </Card>
+    );
+  }
+
+  /* =======================================================
+     SUCESSO
   ======================================================= */
 
   if (success) {
     const generatedMemorandum =
-      'MEM-2026-000005';
+      `MEM-${new Date().getFullYear()}-${String(
+        Date.now()
+      ).slice(-6)}`;
 
     return (
-      <div className="flex min-h-[65vh] items-center justify-center">
+      <Card className="mx-auto max-w-3xl rounded-3xl p-8">
 
-        <Card className="max-w-xl text-center">
+        <div className="text-center">
 
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-3xl bg-emerald-100 text-emerald-600">
 
-            <ShieldCheck
-              size={34}
+            <CheckCircle2
+              size={40}
             />
 
           </div>
 
-          <h1 className="mt-5 text-2xl font-bold">
+          <h1 className="mt-5 text-3xl font-black">
             Solicitação autorizada
           </h1>
 
           <p className="mt-2 text-slate-500">
-            As doses foram baixadas do Estoque Central e o memorando foi preparado.
+            As doses foram retiradas automaticamente dos lotes com vencimento mais próximo.
           </p>
 
-          <div className="mt-6 rounded-xl bg-slate-50 p-4 text-left dark:bg-slate-800/50">
+        </div>
 
-            <p className="text-sm text-slate-500">
+        <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
+
+          <div className="rounded-2xl bg-slate-50 p-5">
+
+            <p className="text-xs font-bold uppercase text-slate-400">
               Solicitação
             </p>
 
-            <p className="font-bold">
-              {request.protocol}
+            <p className="mt-2 font-black">
+              {
+                request.protocol
+              }
             </p>
 
-            <p className="mt-3 text-sm text-slate-500">
+          </div>
+
+          <div className="rounded-2xl bg-slate-50 p-5">
+
+            <p className="text-xs font-bold uppercase text-slate-400">
               Memorando
             </p>
 
-            <p className="font-bold">
+            <p className="mt-2 font-black">
               {
                 generatedMemorandum
               }
             </p>
 
-            <p className="mt-3 text-sm text-slate-500">
+          </div>
+
+          <div className="rounded-2xl bg-blue-50 p-5">
+
+            <p className="text-xs font-bold uppercase text-blue-400">
               Doses liberadas
             </p>
 
-            <p className="font-bold text-brand-600">
+            <p className="mt-2 text-2xl font-black text-blue-600">
               {
                 totals.authorized
               }
@@ -1080,318 +1039,534 @@ export const RequestAnalysis = () => {
 
           </div>
 
-          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
+        </div>
 
-            <Button
-              variant="outline"
-              onClick={() =>
-                navigate(
-                  '/app/solicitacoes'
-                )
-              }
-            >
-              Voltar às solicitações
-            </Button>
+        <div className="mt-8 space-y-3">
 
-            <Button
-              onClick={() =>
-                navigate(
-                  `/app/memorando/${request.protocol}`,
-                  {
-                    state: {
-                      memorandumNumber:
-                        generatedMemorandum,
-
-                      analyzedItems:
-                        items,
-                    },
+          {items
+            .filter(
+              (item) =>
+                item.authorizedQuantity >
+                0
+            )
+            .map(
+              (item) => (
+                <div
+                  key={
+                    item.id
                   }
-                )
-              }
-            >
-              Imprimir memorando
-            </Button>
+                  className="rounded-2xl border border-slate-200 p-5"
+                >
 
-          </div>
+                  <p className="font-black">
+                    {
+                      item.vaccineName
+                    }
+                  </p>
 
-        </Card>
+                  <p className="mt-1 text-sm text-slate-500">
+                    {
+                      item.authorizedQuantity
+                    }{' '}
+                    doses liberadas
+                  </p>
 
-      </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+
+                    {item.lotAllocations?.map(
+                      (
+                        allocation
+                      ) => (
+                        <span
+                          key={
+                            allocation.lotId
+                          }
+                          className="rounded-xl bg-slate-100 px-3 py-2 text-xs font-semibold"
+                        >
+                          Lote{' '}
+                          {
+                            allocation.lotNumber
+                          }{' '}
+                          •{' '}
+                          {
+                            allocation.doses
+                          }{' '}
+                          doses
+                        </span>
+                      )
+                    )}
+
+                  </div>
+
+                </div>
+              )
+            )}
+
+        </div>
+
+        <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
+
+          <Button
+            variant="outline"
+            onClick={() =>
+              navigate(
+                '/app/solicitacoes'
+              )
+            }
+          >
+            Solicitações
+          </Button>
+
+          <Button
+            onClick={() =>
+              navigate(
+                `/app/memorando/${request.protocol}`,
+                {
+                  state: {
+                    memorandumNumber:
+                      generatedMemorandum,
+
+                    analyzedItems:
+                      items,
+                  },
+                }
+              )
+            }
+          >
+            Imprimir memorando
+          </Button>
+
+        </div>
+
+      </Card>
     );
   }
-
-  /* =========================================================
-     TELA
-  ========================================================= */
-
-  return (
-    <div className="mx-auto max-w-[1400px] space-y-6">
+    return (
+    <div className="mx-auto max-w-[1500px] space-y-7">
 
       {/* CABEÇALHO */}
 
-      <header>
+      <Card className="rounded-3xl border-slate-200 p-7">
 
-        <button
-          type="button"
-          onClick={() =>
-            navigate(
-              '/app/solicitacoes'
-            )
-          }
-          className="mb-3 flex items-center gap-2 text-sm font-bold text-brand-600 hover:underline"
-        >
-          <ArrowLeft
-            size={16}
-          />
-
-          Voltar às solicitações
-        </button>
-
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
 
           <div>
 
-            <h1 className="text-3xl font-bold">
-              Analisar solicitação
-            </h1>
+            <div className="flex flex-wrap items-center gap-3">
 
-            <p className="mt-1 text-slate-500">
-              {request.protocol}
-              {' • '}
-              {request.unitName}
+              <h1 className="text-3xl font-black tracking-tight text-slate-900">
+                Analisar solicitação
+              </h1>
+
+              <Badge status="PROCESSING">
+                Em análise
+              </Badge>
+
+            </div>
+
+            <p className="mt-2 text-slate-500">
+              Avalie as doses solicitadas e autorize a distribuição.
             </p>
 
           </div>
 
-          <Badge status="PROCESSING">
-            Em análise
-          </Badge>
+          <Button
+            onClick={() =>
+              setShowCatalog(
+                true
+              )
+            }
+          >
+            <Plus
+              size={17}
+              className="mr-2"
+            />
+
+            Adicionar vacina
+          </Button>
 
         </div>
 
-      </header>
+        <div className="mt-7 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
 
-      {/* DADOS */}
+          <div className="rounded-2xl bg-slate-50 p-4">
 
-      <Card>
+            <p className="text-xs font-bold uppercase text-slate-400">
+              Solicitação
+            </p>
 
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+            <p className="mt-2 font-black">
+              {
+                request.protocol
+              }
+            </p>
 
-          <div>
+          </div>
+
+          <div className="rounded-2xl bg-slate-50 p-4">
+
             <p className="text-xs font-bold uppercase text-slate-400">
               Unidade
             </p>
 
-            <p className="mt-1 font-semibold">
-              {request.unitName}
+            <p className="mt-2 font-black">
+              {
+                request.unitName
+              }
             </p>
+
           </div>
 
-          <div>
+          <div className="rounded-2xl bg-slate-50 p-4">
+
             <p className="text-xs font-bold uppercase text-slate-400">
               Solicitante
             </p>
 
-            <p className="mt-1 font-semibold">
+            <p className="mt-2 font-black">
               {
                 request.requesterName
               }
             </p>
+
           </div>
 
-          <div>
+          <div className="rounded-2xl bg-slate-50 p-4">
+
             <p className="text-xs font-bold uppercase text-slate-400">
               Data
             </p>
 
-            <p className="mt-1 font-semibold">
-              {request.createdAt}
-            </p>
-          </div>
-
-          <div>
-            <p className="text-xs font-bold uppercase text-slate-400">
-              Itens
-            </p>
-
-            <p className="mt-1 font-semibold">
+            <p className="mt-2 font-black">
               {
-                request.items.length
-              }{' '}
-              vacinas
+                request.createdAt
+              }
             </p>
+
           </div>
 
         </div>
 
       </Card>
 
-      {/* TÍTULO */}
+      {/* FEFO */}
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex items-start gap-4 rounded-2xl border border-blue-100 bg-blue-50 p-5">
+
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-blue-100 text-blue-600">
+
+          <Package
+            size={21}
+          />
+
+        </div>
 
         <div>
 
-          <h2 className="text-xl font-bold">
-            Vacinas da liberação
-          </h2>
+          <p className="font-bold text-blue-800">
+            Seleção automática de lotes
+          </p>
 
-          <p className="mt-1 text-sm text-slate-500">
-            Selecione o lote e informe as doses que serão liberadas.
+          <p className="mt-1 text-sm text-blue-600">
+            O IMUNIZA PLUS utiliza primeiro os lotes válidos com vencimento mais próximo.
           </p>
 
         </div>
 
-        <Button
-          onClick={() =>
-            setShowCatalog(true)
-          }
-        >
-          <Plus
-            size={16}
-            className="mr-2"
-          />
-
-          Adicionar vacina
-        </Button>
-
       </div>
 
-      {/* ITENS */}
+      {/* VACINAS */}
 
-      <div className="space-y-4">
+      <section>
 
-        {items.map(
-          (item) => {
-            const lots =
-              getAvailableLots(
-                item
-              );
+        <div className="mb-4">
 
-            const selectedItemLot =
-              lots.find(
-                (lot) =>
-                  lot.lotNumber ===
-                  item.lotNumber
-              );
+          <h2 className="text-xl font-black text-slate-900">
+            Vacinas da solicitação
+          </h2>
 
-            if (
-              item.addedByCentral
-            ) {
+          <p className="mt-1 text-sm text-slate-500">
+            Defina somente as doses que serão autorizadas.
+          </p>
+
+        </div>
+
+        <div className="space-y-5">
+
+          {items.map(
+            (item) => {
+              const available =
+                getAvailableDoses(
+                  item
+                );
+
+              const vaccine =
+                findCatalogVaccine(
+                  item
+                );
+
+              const nextLot =
+                vaccine
+                  ? getValidLotsByVaccine(
+                      vaccine.id
+                    )[0]
+                  : undefined;
+
+              const isReduced =
+                !item.addedByCentral &&
+                item.authorizedQuantity <
+                  item.requestedQuantity;
+
               return (
                 <Card
-                  key={item.id}
-                  className="border-blue-200"
+                  key={
+                    item.id
+                  }
+                  className={`rounded-3xl p-6 ${
+                    item.addedByCentral
+                      ? 'border-blue-200'
+                      : 'border-slate-200'
+                  }`}
                 >
 
-                  <div className="flex flex-col gap-5">
+                  <div className="flex flex-col gap-6">
 
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 
-                      <div>
+                      <div className="flex items-center gap-4">
 
-                        <div className="flex flex-wrap items-center gap-2">
+                        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
 
-                          <h2 className="text-lg font-bold">
-                            {
-                              item.vaccineName
-                            }
-                          </h2>
-
-                          <span className="rounded-full bg-blue-100 px-2 py-1 text-[10px] font-bold text-blue-700">
-                            Adicionada pela Central
-                          </span>
+                          <Syringe
+                            size={27}
+                          />
 
                         </div>
 
-                        <p className="mt-2 text-sm text-slate-500">
-                          Lote:{' '}
-                          <strong>
-                            {
-                              item.lotNumber
-                            }
-                          </strong>
-                        </p>
+                        <div>
+
+                          <div className="flex flex-wrap items-center gap-2">
+
+                            <h3 className="text-xl font-black">
+                              {
+                                item.vaccineName
+                              }
+                            </h3>
+
+                            {item.addedByCentral && (
+                              <span className="rounded-full bg-blue-100 px-3 py-1 text-[10px] font-bold text-blue-700">
+                                Central
+                              </span>
+                            )}
+
+                          </div>
+
+                          {!item.addedByCentral && (
+                            <div className="mt-2">
+
+                              {isReduced ? (
+                                <Badge status="PENDING">
+                                  Autorização parcial
+                                </Badge>
+                              ) : (
+                                <Badge status="ACTIVE">
+                                  Autorização total
+                                </Badge>
+                              )}
+
+                            </div>
+                          )}
+
+                        </div>
 
                       </div>
 
-                      <Button
-                        variant="outline"
-                        className="text-red-600"
-                        onClick={() =>
-                          removeExtraVaccine(
-                            item.id
-                          )
-                        }
-                      >
-                        <Trash2
-                          size={15}
-                          className="mr-2"
-                        />
+                      {item.addedByCentral && (
+                        <Button
+                          variant="outline"
+                          className="text-red-600"
+                          onClick={() =>
+                            removeExtraVaccine(
+                              item.id
+                            )
+                          }
+                        >
+                          <Trash2
+                            size={15}
+                            className="mr-2"
+                          />
 
-                        Remover
-                      </Button>
+                          Remover
+                        </Button>
+                      )}
 
                     </div>
 
-                    <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
 
-                      <div className="rounded-xl bg-slate-50 p-4 dark:bg-slate-800/50">
+                      <div className="rounded-2xl bg-slate-50 p-4">
 
-                        <p className="text-xs text-slate-500">
-                          Lote
+                        <p className="text-xs font-bold uppercase text-slate-400">
+                          Estoque unidade
                         </p>
 
-                        <p className="mt-1 font-bold">
+                        <p className="mt-2 text-2xl font-black">
                           {
-                            item.lotNumber
+                            item.localStockReported
                           }
+                        </p>
+
+                        <p className="text-xs text-slate-400">
+                          doses
                         </p>
 
                       </div>
 
-                      <div className="rounded-xl bg-slate-50 p-4 dark:bg-slate-800/50">
+                      <div className="rounded-2xl bg-amber-50 p-4">
 
-                        <p className="text-xs text-slate-500">
-                          Doses disponíveis
+                        <p className="text-xs font-bold uppercase text-amber-500">
+                          Solicitado
                         </p>
 
-                        <p className="mt-1 text-xl font-bold text-brand-600">
-                          {selectedItemLot?.doses ??
-                            0}
+                        <p className="mt-2 text-2xl font-black text-amber-700">
+                          {
+                            item.requestedQuantity
+                          }
                         </p>
+
+                        <p className="text-xs text-amber-500">
+                          doses
+                        </p>
+
+                      </div>
+
+                      <div className="rounded-2xl bg-blue-50 p-4">
+
+                        <p className="text-xs font-bold uppercase text-blue-400">
+                          Estoque Central
+                        </p>
+
+                        <p className="mt-2 text-2xl font-black text-blue-600">
+                          {
+                            available
+                          }
+                        </p>
+
+                        <p className="text-xs text-blue-400">
+                          doses
+                        </p>
+
+                      </div>
+
+                      <div className="rounded-2xl bg-emerald-50 p-4">
+
+                        <p className="text-xs font-bold uppercase text-emerald-500">
+                          Próximo lote
+                        </p>
+
+                        {nextLot ? (
+                          <>
+                            <p className="mt-2 font-black text-emerald-700">
+                              {
+                                nextLot.lotNumber
+                              }
+                            </p>
+
+                            <p className="text-xs text-emerald-500">
+                              {
+                                nextLot.doses
+                              }{' '}
+                              doses
+                            </p>
+                          </>
+                        ) : (
+                          <p className="mt-2 font-black text-red-600">
+                            Sem lote
+                          </p>
+                        )}
+
+                      </div>
+
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+
+                      <div>
+
+                        <label className="mb-2 block text-sm font-bold text-slate-700">
+                          Doses autorizadas
+                        </label>
+
+                        <div className="flex gap-2">
+
+                          <input
+                            type="number"
+                            min={0}
+                            max={
+                              item.addedByCentral
+                                ? available
+                                : Math.min(
+                                    item.requestedQuantity,
+                                    available
+                                  )
+                            }
+                            value={
+                              item.authorizedQuantity
+                            }
+                            onChange={(
+                              event
+                            ) =>
+                              updateAuthorized(
+                                item.id,
+                                Number(
+                                  event.target.value
+                                )
+                              )
+                            }
+                            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-lg font-bold outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                          />
+
+                          {!item.addedByCentral && (
+                            <Button
+                              variant="outline"
+                              onClick={() =>
+                                restoreRequested(
+                                  item.id
+                                )
+                              }
+                            >
+                              <RotateCcw
+                                size={17}
+                              />
+                            </Button>
+                          )}
+
+                        </div>
 
                       </div>
 
                       <div>
 
-                        <label className="mb-1 block text-xs font-bold text-slate-500">
-                          Doses a liberar
+                        <label className="mb-2 block text-sm font-bold text-slate-700">
+                          Observação
                         </label>
 
                         <input
-                          type="number"
-                          min={1}
-                          max={
-                            selectedItemLot?.doses ??
-                            0
-                          }
+                          type="text"
                           value={
-                            item.authorizedQuantity
+                            item.notes ??
+                            ''
                           }
                           onChange={(
                             event
                           ) =>
-                            updateAuthorized(
+                            updateNotes(
                               item.id,
-                              Number(
-                                event
-                                  .target
-                                  .value
-                              )
+                              event.target.value
                             )
                           }
-                          className="w-full rounded-lg border border-slate-200 bg-transparent px-3 py-2 outline-none focus:ring-2 focus:ring-brand-500 dark:border-slate-700"
+                          placeholder="Observação opcional"
+                          className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
                         />
 
                       </div>
@@ -1403,396 +1578,99 @@ export const RequestAnalysis = () => {
                 </Card>
               );
             }
+          )}
 
-            const isReduced =
-              item.authorizedQuantity <
-              item.requestedQuantity;
+        </div>
 
-            return (
-              <Card
-                key={item.id}
-              >
+      </section>
 
-                <div className="flex flex-col gap-5">
+      {/* RESUMO FINAL */}
 
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+      <Card className="rounded-3xl p-7">
 
-                    <div>
+        <div className="flex flex-col gap-6 xl:flex-row xl:items-center xl:justify-between">
 
-                      <h2 className="text-lg font-bold">
-                        {
-                          item.vaccineName
-                        }
-                      </h2>
+          <div>
 
-                      {lots.length ===
-                        0 && (
-                        <p className="mt-1 flex items-center gap-1 text-xs font-semibold text-red-600">
+            <h2 className="text-xl font-black">
+              Resumo da análise
+            </h2>
 
-                          <AlertTriangle
-                            size={14}
-                          />
+            <p className="mt-1 text-sm text-slate-500">
+              Confira os totais antes de confirmar.
+            </p>
 
-                          Nenhum lote disponível no Estoque Central
+          </div>
 
-                        </p>
-                      )}
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
 
-                    </div>
+            {[
+              [
+                'Solicitadas',
+                totals.requested,
+              ],
 
-                    {isReduced ? (
-                      <Badge status="PENDING">
-                        Autorização parcial
-                      </Badge>
-                    ) : (
-                      <Badge status="ACTIVE">
-                        Autorização total
-                      </Badge>
-                    )}
+              [
+                'Liberadas',
+                totals.authorized,
+              ],
 
-                  </div>
+              [
+                'Totais',
+                totals.full,
+              ],
 
-                  <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+              [
+                'Parciais',
+                totals.partial,
+              ],
 
-                    <div className="rounded-xl bg-slate-50 p-4 dark:bg-slate-800/50">
+              [
+                'Não autorizadas',
+                totals.rejected,
+              ],
 
-                      <p className="text-xs text-slate-500">
-                        Estoque da unidade
-                      </p>
+              [
+                'Extras',
+                totals.extra,
+              ],
+            ].map(
+              ([label, value]) => (
+                <div
+                  key={
+                    String(label)
+                  }
+                  className="rounded-2xl bg-slate-50 p-4 text-center"
+                >
 
-                      <p className="mt-1 text-xl font-bold">
-                        {
-                          item.localStockReported
-                        }
-                      </p>
+                  <p className="text-2xl font-black text-slate-900">
+                    {
+                      value
+                    }
+                  </p>
 
-                    </div>
-
-                    <div className="rounded-xl bg-slate-50 p-4 dark:bg-slate-800/50">
-
-                      <p className="text-xs text-slate-500">
-                        Doses solicitadas
-                      </p>
-
-                      <p className="mt-1 text-xl font-bold">
-                        {
-                          item.requestedQuantity
-                        }
-                      </p>
-
-                    </div>
-
-                    <div className="rounded-xl bg-slate-50 p-4 dark:bg-slate-800/50">
-
-                      <p className="text-xs text-slate-500">
-                        Lote selecionado
-                      </p>
-
-                      <p className="mt-1 text-sm font-bold">
-                        {item.lotNumber ||
-                          'Não selecionado'}
-                      </p>
-
-                    </div>
-
-                    <div className="rounded-xl bg-slate-50 p-4 dark:bg-slate-800/50">
-
-                      <p className="text-xs text-slate-500">
-                        Doses no lote
-                      </p>
-
-                      <p className="mt-1 text-xl font-bold text-brand-600">
-                        {selectedItemLot?.doses ??
-                          0}
-                      </p>
-
-                    </div>
-
-                  </div>
-
-                  <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-
-                    <div>
-
-                      <label className="mb-1 block text-xs font-bold text-slate-500">
-                        Lote
-                      </label>
-
-                      <select
-                        value={
-                          item.lotNumber ??
-                          ''
-                        }
-                        onChange={(
-                          event
-                        ) => {
-                          updateLot(
-                            item.id,
-                            event.target
-                              .value
-                          );
-
-                          /*
-                           * Ao trocar o lote,
-                           * zera as doses para evitar
-                           * autorização incompatível.
-                           */
-                          setItems(
-                            (previous) =>
-                              previous.map(
-                                (current) =>
-                                  current.id ===
-                                  item.id
-                                    ? {
-                                        ...current,
-                                        lotNumber:
-                                          event
-                                            .target
-                                            .value,
-                                        authorizedQuantity:
-                                          0,
-                                      }
-                                    : current
-                              )
-                          );
-                        }}
-                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-900"
-                      >
-
-                        <option value="">
-                          Selecione...
-                        </option>
-
-                        {lots.map(
-                          (lot) => (
-                            <option
-                              key={
-                                lot.id
-                              }
-                              value={
-                                lot.lotNumber
-                              }
-                            >
-                              {
-                                lot.lotNumber
-                              }{' '}
-                              —{' '}
-                              {
-                                lot.doses
-                              }{' '}
-                              doses
-                            </option>
-                          )
-                        )}
-
-                      </select>
-
-                    </div>
-
-                    <div>
-
-                      <label className="mb-1 block text-xs font-bold text-slate-500">
-                        Doses autorizadas
-                      </label>
-
-                      <div className="flex gap-2">
-
-                        <input
-                          type="number"
-                          min={0}
-                          max={
-                            selectedItemLot
-                              ? Math.min(
-                                  item.requestedQuantity,
-                                  selectedItemLot.doses
-                                )
-                              : 0
-                          }
-                          disabled={
-                            !item.lotNumber
-                          }
-                          value={
-                            item.authorizedQuantity
-                          }
-                          onChange={(
-                            event
-                          ) =>
-                            updateAuthorized(
-                              item.id,
-                              Number(
-                                event
-                                  .target
-                                  .value
-                              )
-                            )
-                          }
-                          className="w-full rounded-lg border border-slate-200 bg-transparent px-3 py-2 outline-none disabled:opacity-50 dark:border-slate-700"
-                        />
-
-                        <Button
-                          variant="outline"
-                          disabled={
-                            !item.lotNumber
-                          }
-                          onClick={() =>
-                            restoreRequested(
-                              item.id
-                            )
-                          }
-                        >
-                          <RotateCcw
-                            size={16}
-                          />
-                        </Button>
-
-                      </div>
-
-                    </div>
-
-                    <div>
-
-                      <label className="mb-1 block text-xs font-bold text-slate-500">
-                        Observação
-                      </label>
-
-                      <input
-                        type="text"
-                        value={
-                          item.notes ??
-                          ''
-                        }
-                        onChange={(
-                          event
-                        ) =>
-                          updateNotes(
-                            item.id,
-                            event.target
-                              .value
-                          )
-                        }
-                        placeholder="Observação opcional"
-                        className="w-full rounded-lg border border-slate-200 bg-transparent px-3 py-2 dark:border-slate-700"
-                      />
-
-                    </div>
-
-                  </div>
+                  <p className="mt-1 text-[11px] font-semibold text-slate-500">
+                    {
+                      label
+                    }
+                  </p>
 
                 </div>
+              )
+            )}
 
-              </Card>
-            );
-          }
-        )}
-
-      </div>
-
-      {/* RESUMO */}
-
-      <Card>
-
-        <h2 className="text-lg font-bold">
-          Resumo da análise
-        </h2>
-
-        <div className="mt-4 grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
-
-          <div>
-            <p className="text-xs text-slate-500">
-              Doses solicitadas
-            </p>
-
-            <p className="text-xl font-bold">
-              {
-                totals.requested
-              }
-            </p>
-          </div>
-
-          <div>
-            <p className="text-xs text-slate-500">
-              Doses liberadas
-            </p>
-
-            <p className="text-xl font-bold text-brand-600">
-              {
-                totals.authorized
-              }
-            </p>
-          </div>
-
-          <div>
-            <p className="text-xs text-slate-500">
-              Totais
-            </p>
-
-            <p className="text-xl font-bold text-emerald-600">
-              {totals.full}
-            </p>
-          </div>
-
-          <div>
-            <p className="text-xs text-slate-500">
-              Parciais
-            </p>
-
-            <p className="text-xl font-bold text-amber-600">
-              {
-                totals.partial
-              }
-            </p>
-          </div>
-
-          <div>
-            <p className="text-xs text-slate-500">
-              Não autorizados
-            </p>
-
-            <p className="text-xl font-bold text-red-600">
-              {
-                totals.rejected
-              }
-            </p>
-          </div>
-
-          <div>
-            <p className="text-xs text-slate-500">
-              Extras da Central
-            </p>
-
-            <p className="text-xl font-bold text-blue-600">
-              {
-                totals.extra
-              }
-            </p>
           </div>
 
         </div>
 
-        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
-
-          <Button
-            variant="outline"
-            onClick={() =>
-              alert(
-                'Análise salva localmente.'
-              )
-            }
-          >
-            <Save
-              size={16}
-              className="mr-2"
-            />
-
-            Salvar análise
-          </Button>
+        <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:justify-end">
 
           <Button
             variant="outline"
             className="text-red-600"
             onClick={() =>
               alert(
-                'Rejeição simulada nesta versão.'
+                'Rejeição será integrada ao histórico.'
               )
             }
           >
@@ -1810,7 +1688,7 @@ export const RequestAnalysis = () => {
             }
           >
             <ShieldCheck
-              size={16}
+              size={17}
               className="mr-2"
             />
 
@@ -1821,129 +1699,121 @@ export const RequestAnalysis = () => {
 
       </Card>
 
-      {/* =====================================================
-          CATÁLOGO
-      ===================================================== */}
+      {/* CATÁLOGO */}
 
       {showCatalog && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
 
-          <Card className="max-h-[92vh] w-full max-w-6xl overflow-y-auto">
+          <Card className="max-h-[92vh] w-full max-w-6xl overflow-y-auto rounded-3xl p-6">
 
-            <div className="sticky top-0 z-10 bg-white pb-4 dark:bg-slate-900">
+            <div className="flex items-start justify-between gap-4">
 
-              <div className="flex items-start justify-between">
+              <div>
 
-                <div>
+                <h2 className="text-2xl font-black">
+                  Adicionar vacina
+                </h2>
 
-                  <h2 className="text-2xl font-bold">
-                    Catálogo de vacinas
-                  </h2>
-
-                  <p className="mt-1 text-sm text-slate-500">
-                    Vacinas disponíveis no Estoque Central.
-                  </p>
-
-                </div>
-
-                <Button
-                  variant="ghost"
-                  onClick={() =>
-                    setShowCatalog(
-                      false
-                    )
-                  }
-                >
-                  ✕
-                </Button>
+                <p className="mt-1 text-sm text-slate-500">
+                  Escolha uma vacina disponível no Estoque Central.
+                </p>
 
               </div>
 
-              <div className="mt-5 flex flex-col gap-3 md:flex-row">
+              <Button
+                variant="outline"
+                onClick={() =>
+                  setShowCatalog(
+                    false
+                  )
+                }
+              >
+                Fechar
+              </Button>
 
-                <div className="relative flex-1">
+            </div>
 
-                  <Search
-                    size={18}
-                    className="absolute left-3 top-2.5 text-slate-400"
-                  />
+            <div className="mt-6 flex flex-col gap-3 md:flex-row">
 
-                  <input
-                    value={
-                      searchTerm
-                    }
-                    onChange={(
-                      event
-                    ) =>
-                      setSearchTerm(
-                        event.target
-                          .value
-                      )
-                    }
-                    placeholder="Buscar vacina..."
-                    className="w-full rounded-lg border border-slate-200 bg-transparent py-2 pl-10 pr-4 dark:border-slate-700"
-                  />
+              <div className="relative flex-1">
 
-                </div>
+                <Search
+                  size={18}
+                  className="absolute left-3 top-3 text-slate-400"
+                />
 
-                <select
+                <input
                   value={
-                    categoryFilter
+                    searchTerm
                   }
                   onChange={(
                     event
                   ) =>
-                    setCategoryFilter(
-                      event.target
-                        .value as
-                        | 'TODAS'
-                        | VaccineCategory
+                    setSearchTerm(
+                      event.target.value
                     )
                   }
-                  className="rounded-lg border border-slate-200 bg-white px-4 py-2 dark:border-slate-700 dark:bg-slate-900"
-                >
-
-                  <option value="TODAS">
-                    Todas as categorias
-                  </option>
-
-                  {vaccineCategories.map(
-                    (
-                      category
-                    ) => (
-                      <option
-                        key={
-                          category
-                        }
-                        value={
-                          category
-                        }
-                      >
-                        {
-                          category
-                        }
-                      </option>
-                    )
-                  )}
-
-                </select>
+                  placeholder="Buscar vacina..."
+                  className="w-full rounded-xl border border-slate-200 py-3 pl-10 pr-4 outline-none"
+                />
 
               </div>
 
+              <select
+                value={
+                  categoryFilter
+                }
+                onChange={(
+                  event
+                ) =>
+                  setCategoryFilter(
+                    event.target
+                      .value as
+                      | 'TODAS'
+                      | VaccineCategory
+                  )
+                }
+                className="rounded-xl border border-slate-200 bg-white px-4 py-3"
+              >
+
+                <option value="TODAS">
+                  Todas as categorias
+                </option>
+
+                {vaccineCategories.map(
+                  (
+                    category
+                  ) => (
+                    <option
+                      key={
+                        category
+                      }
+                    >
+                      {
+                        category
+                      }
+                    </option>
+                  )
+                )}
+
+              </select>
+
             </div>
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
 
               {visibleVaccines.map(
-                (vaccine) => (
+                (
+                  vaccine
+                ) => (
                   <Card
                     key={
                       vaccine.id
                     }
-                    className="flex h-full flex-col"
+                    className="rounded-2xl p-4"
                   >
 
-                    <div className="flex h-36 items-center justify-center overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-800">
+                    <div className="flex h-32 items-center justify-center overflow-hidden rounded-xl bg-slate-50">
 
                       {vaccine.imageUrl ? (
                         <img
@@ -1956,59 +1826,38 @@ export const RequestAnalysis = () => {
                           className="h-full w-full object-contain p-2"
                         />
                       ) : (
-                        <div className="text-center text-slate-400">
-
-                          <Syringe
-                            size={38}
-                            className="mx-auto"
-                          />
-
-                          <p className="mt-2 text-xs">
-                            Sem foto
-                          </p>
-
-                        </div>
+                        <Syringe
+                          size={36}
+                          className="text-slate-300"
+                        />
                       )}
 
                     </div>
 
-                    <div className="mt-4 flex-1">
+                    <h3 className="mt-4 font-black">
+                      {
+                        vaccine.name
+                      }
+                    </h3>
 
-                      <h3 className="font-bold">
-                        {
-                          vaccine.name
-                        }
-                      </h3>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {
+                        vaccine.category
+                      }
+                    </p>
 
-                      <p className="mt-1 text-xs text-slate-500">
-                        {
-                          vaccine.category
-                        }
+                    <div className="mt-4 rounded-xl bg-blue-50 p-3">
+
+                      <p className="text-xs text-blue-400">
+                        Estoque Central
                       </p>
 
-                      <div className="mt-4 flex items-center gap-2 rounded-lg bg-slate-50 p-3 dark:bg-slate-800/50">
-
-                        <Package
-                          size={17}
-                          className="text-brand-600"
-                        />
-
-                        <div>
-
-                          <p className="text-[10px] uppercase text-slate-400">
-                            Estoque Central
-                          </p>
-
-                          <p className="font-bold text-brand-600">
-                            {vaccine.stock.toLocaleString(
-                              'pt-BR'
-                            )}{' '}
-                            doses
-                          </p>
-
-                        </div>
-
-                      </div>
+                      <p className="mt-1 text-xl font-black text-blue-600">
+                        {
+                          vaccine.stock
+                        }{' '}
+                        doses
+                      </p>
 
                     </div>
 
@@ -2041,109 +1890,68 @@ export const RequestAnalysis = () => {
         </div>
       )}
 
-      {/* =====================================================
-          ADICIONAR EXTRA
-      ===================================================== */}
+      {/* EXTRA */}
 
       {showExtraModal &&
         selectedVaccine && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-950/60 p-4">
 
-          <Card className="w-full max-w-lg">
+          <Card className="w-full max-w-lg rounded-3xl p-7">
 
-            <h2 className="text-xl font-bold">
+            <h2 className="text-2xl font-black">
               Adicionar à liberação
             </h2>
 
-            <p className="mt-1 text-sm text-slate-500">
+            <p className="mt-1 text-slate-500">
               {
                 selectedVaccine.name
               }
             </p>
 
-            <div className="mt-5 space-y-4">
+            <div className="mt-6 rounded-2xl bg-blue-50 p-5">
 
-              <div>
+              <p className="text-xs font-bold uppercase text-blue-400">
+                Disponível
+              </p>
 
-                <label className="mb-1 block text-xs font-bold text-slate-500">
-                  Lote
-                </label>
+              <p className="mt-1 text-3xl font-black text-blue-600">
+                {
+                  selectedVaccine.stock
+                }
+              </p>
 
-                <select
-                  value={
-                    selectedLot
-                  }
-                  onChange={(
-                    event
-                  ) =>
-                    setSelectedLot(
-                      event.target
-                        .value
+              <p className="text-xs text-blue-400">
+                doses
+              </p>
+
+            </div>
+
+            <div className="mt-5">
+
+              <label className="mb-2 block text-sm font-bold">
+                Doses a liberar
+              </label>
+
+              <input
+                type="number"
+                min={1}
+                max={
+                  selectedVaccine.stock
+                }
+                value={
+                  extraDoses
+                }
+                onChange={(
+                  event
+                ) =>
+                  setExtraDoses(
+                    Number(
+                      event.target.value
                     )
-                  }
-                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-900"
-                >
-
-                  <option value="">
-                    Selecione...
-                  </option>
-
-                  {extraVaccineLots.map(
-                    (lot) => (
-                      <option
-                        key={
-                          lot.id
-                        }
-                        value={
-                          lot.lotNumber
-                        }
-                      >
-                        {
-                          lot.lotNumber
-                        }{' '}
-                        —{' '}
-                        {
-                          lot.doses
-                        }{' '}
-                        doses
-                      </option>
-                    )
-                  )}
-
-                </select>
-
-              </div>
-
-              <div>
-
-                <label className="mb-1 block text-xs font-bold text-slate-500">
-                  Doses a liberar
-                </label>
-
-                <input
-                  type="number"
-                  min={1}
-                  max={
-                    selectedExtraLot?.doses ??
-                    0
-                  }
-                  value={
-                    extraDoses
-                  }
-                  onChange={(
-                    event
-                  ) =>
-                    setExtraDoses(
-                      Number(
-                        event.target
-                          .value
-                      )
-                    )
-                  }
-                  className="w-full rounded-lg border border-slate-200 bg-transparent px-3 py-2 dark:border-slate-700"
-                />
-
-              </div>
+                  )
+                }
+                className="w-full rounded-xl border border-slate-200 px-4 py-3"
+              />
 
             </div>
 
@@ -2169,11 +1977,6 @@ export const RequestAnalysis = () => {
                   confirmAddVaccine
                 }
               >
-                <Plus
-                  size={16}
-                  className="mr-2"
-                />
-
                 Adicionar
               </Button>
 
@@ -2184,36 +1987,41 @@ export const RequestAnalysis = () => {
         </div>
       )}
 
-      {/* =====================================================
-          CONFIRMAR
-      ===================================================== */}
+      {/* CONFIRMAÇÃO */}
 
       {showConfirm && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/60 p-4">
 
-          <Card className="w-full max-w-md">
+          <Card className="w-full max-w-md rounded-3xl p-7">
 
-            <h3 className="text-xl font-bold">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
+
+              <ShieldCheck
+                size={27}
+              />
+
+            </div>
+
+            <h2 className="mt-5 text-2xl font-black">
               Confirmar autorização?
-            </h3>
+            </h2>
 
-            <div className="mt-4 space-y-2 rounded-xl bg-slate-50 p-4 text-sm dark:bg-slate-800/50">
+            <p className="mt-2 text-sm text-slate-500">
+              O estoque será atualizado automaticamente.
+            </p>
 
-              <p>
+            <div className="mt-5 rounded-2xl bg-slate-50 p-5">
+
+              <p className="text-sm">
                 <strong>
                   Solicitação:
                 </strong>{' '}
-                {request.protocol}
+                {
+                  request.protocol
+                }
               </p>
 
-              <p>
-                <strong>
-                  Unidade:
-                </strong>{' '}
-                {request.unitName}
-              </p>
-
-              <p>
+              <p className="mt-2 text-sm">
                 <strong>
                   Doses solicitadas:
                 </strong>{' '}
@@ -2222,7 +2030,7 @@ export const RequestAnalysis = () => {
                 }
               </p>
 
-              <p>
+              <p className="mt-2 text-sm">
                 <strong>
                   Doses liberadas:
                 </strong>{' '}
@@ -2232,10 +2040,6 @@ export const RequestAnalysis = () => {
               </p>
 
             </div>
-
-            <p className="mt-4 text-sm text-slate-500">
-              Ao confirmar, as doses serão baixadas do Estoque Central.
-            </p>
 
             <div className="mt-6 grid grid-cols-2 gap-3">
 

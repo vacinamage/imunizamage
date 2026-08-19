@@ -1,14 +1,14 @@
 import {
+  AlertTriangle,
+  BarChart3,
   BookOpen,
   ClipboardList,
   Package,
-  FlaskConical,
   Truck,
-  BarChart3,
-  AlertTriangle,
 } from 'lucide-react';
 
 import { useNavigate } from 'react-router-dom';
+
 import { Card } from '../../components/ui';
 
 export const MunicipalDashboard = () => {
@@ -20,7 +20,7 @@ export const MunicipalDashboard = () => {
       description: 'Treinamentos e conteúdos de apoio.',
       icon: BookOpen,
       action: () => {},
-      status: 'Em manutenção',
+      maintenance: true,
     },
     {
       title: 'Solicitações',
@@ -31,281 +31,337 @@ export const MunicipalDashboard = () => {
     },
     {
       title: 'Estoque Central',
-      description: 'Consulte e gerencie as doses disponíveis na Central.',
+      description: 'Gerencie vacinas, lotes e entradas.',
       icon: Package,
       action: () => navigate('/app/estoque'),
     },
-    
     {
       title: 'Entregas',
-      description: 'Acompanhe solicitações autorizadas e entregues.',
+      description: 'Acompanhe as entregas realizadas.',
       icon: Truck,
       action: () => navigate('/app/entregas'),
     },
     {
       title: 'Relatórios',
-      description: 'Consulte relatórios de estoque, solicitações e entregas.',
+      description: 'Relatórios gerais do sistema.',
       icon: BarChart3,
-      action: () => navigate('/app/relatorios'),
+      action: () => {},
+      maintenance: true,
     },
   ];
 
   return (
-    <div className="mx-auto max-w-[1500px] space-y-8">
+    <div className="mx-auto max-w-[1600px] space-y-10">
 
-      <header>
-        <p className="font-semibold text-brand-600">
-          Prefeitura de Magé
+      {/* CABEÇALHO */}
+
+      <section className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
+
+        <p className="text-sm font-bold uppercase tracking-widest text-blue-600">
+          Central de Imunização
         </p>
 
-        <h1 className="mt-1 text-3xl font-bold text-slate-900 dark:text-white">
-          Central de Imunização
+        <h1 className="mt-2 text-4xl font-black tracking-tight text-slate-900">
+          Olá, Imunização!
         </h1>
 
-        <p className="mt-2 text-slate-500">
-          Painel de solicitações, estoque, lotes e distribuição de imunobiológicos.
+        <p className="mt-3 max-w-3xl text-lg text-slate-500">
+          Bem-vindo ao IMUNIZA PLUS. Gerencie solicitações,
+          estoque central, entregas e distribuição de
+          imunobiológicos em um único painel.
         </p>
-      </header>
+
+      </section>
 
       {/* ACESSO RÁPIDO */}
+
       <section>
-        <h2 className="mb-4 text-lg font-bold text-slate-900 dark:text-white">
+
+        <h2 className="mb-5 text-xl font-bold text-slate-900">
           Acesso rápido
         </h2>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-2 gap-5 md:grid-cols-3 xl:grid-cols-5">
 
           {shortcuts.map((shortcut) => {
+
             const Icon = shortcut.icon;
 
             return (
+
               <button
                 key={shortcut.title}
                 type="button"
                 onClick={shortcut.action}
                 className="text-left"
               >
-                <Card className="relative h-full transition-all hover:-translate-y-1 hover:border-brand-300 hover:shadow-md">
 
-                  {shortcut.notification !== undefined &&
-                    shortcut.notification > 0 && (
-                      <span className="absolute right-4 top-4 flex min-w-6 items-center justify-center rounded-full bg-red-500 px-2 py-1 text-[10px] font-bold text-white">
-                        {shortcut.notification}
-                      </span>
-                    )}
+                <Card className="group relative rounded-3xl border-slate-200 p-6 transition duration-200 hover:-translate-y-1 hover:border-blue-200 hover:shadow-lg">
 
-                  <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-50 text-brand-600 dark:bg-brand-950/40">
-                    <Icon size={28} />
-                  </div>
+                  {shortcut.notification && (
 
-                  <div className="flex items-start justify-between gap-3">
+                    <span className="absolute right-5 top-5 flex h-7 min-w-7 items-center justify-center rounded-full bg-red-500 px-2 text-xs font-bold text-white">
 
-                    <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-                      {shortcut.title}
-                    </h3>
+                      {shortcut.notification}
 
-                    {shortcut.status && (
-                      <span className="rounded-full bg-amber-100 px-2 py-1 text-[10px] font-bold text-amber-700">
-                        {shortcut.status}
-                      </span>
-                    )}
+                    </span>
+
+                  )}
+
+                  <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-sky-50 text-sky-600 transition group-hover:bg-blue-600 group-hover:text-white">
+
+                    <Icon size={30} />
 
                   </div>
 
-                  <p className="mt-2 text-sm text-slate-500">
-                    {shortcut.description}
-                  </p>
+                  <div className="mt-5">
+
+                    <div className="flex items-center gap-2">
+
+                      <h3 className="text-lg font-bold text-slate-900">
+
+                        {shortcut.title}
+
+                      </h3>
+
+                      {shortcut.maintenance && (
+
+                        <span className="rounded-full bg-amber-100 px-2 py-1 text-[9px] font-bold text-amber-700">
+
+                          Em manutenção
+
+                        </span>
+
+                      )}
+
+                    </div>
+
+                    <p className="mt-3 text-sm leading-6 text-slate-500">
+
+                      {shortcut.description}
+
+                    </p>
+
+                  </div>
 
                 </Card>
+
               </button>
+
             );
+
           })}
 
         </div>
+
       </section>
+            {/* PAINEL */}
 
-      {/* PAINEL PRINCIPAL */}
-      <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <section className="grid grid-cols-1 gap-6 xl:grid-cols-2">
 
-        {/* SOLICITAÇÕES */}
-        <Card>
-          <div className="flex items-start justify-between gap-4">
+        {/* RESUMO OPERACIONAL */}
+
+        <Card className="rounded-3xl border-slate-200 p-7">
+
+          <div className="flex items-center justify-between">
 
             <div>
-              <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-                Solicitações
+
+              <h2 className="text-xl font-bold text-slate-900">
+                Resumo Operacional
               </h2>
 
               <p className="mt-1 text-sm text-slate-500">
-                Situação atual das solicitações das unidades.
+                Situação atual da Central de Imunização.
               </p>
+
             </div>
 
-            <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-bold text-red-700">
-              4 pendentes
-            </span>
+            <Package
+              size={28}
+              className="text-blue-600"
+            />
 
           </div>
 
-          <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="mt-7 space-y-4">
 
             <button
-              type="button"
-              onClick={() =>
-                navigate('/app/solicitacoes')
-              }
-              className="rounded-xl bg-slate-50 p-4 text-left transition hover:bg-slate-100 dark:bg-slate-800/50 dark:hover:bg-slate-800"
+              onClick={() => navigate('/app/estoque')}
+              className="flex w-full items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 p-5 transition hover:bg-slate-100"
             >
-              <p className="text-2xl font-bold text-brand-600">
-                2
-              </p>
-
-              <p className="mt-1 text-xs font-semibold text-slate-500">
-                Novas
-              </p>
-            </button>
-
-            <button
-              type="button"
-              onClick={() =>
-                navigate('/app/solicitacoes')
-              }
-              className="rounded-xl bg-slate-50 p-4 text-left transition hover:bg-slate-100 dark:bg-slate-800/50 dark:hover:bg-slate-800"
-            >
-              <p className="text-2xl font-bold text-amber-600">
-                2
-              </p>
-
-              <p className="mt-1 text-xs font-semibold text-slate-500">
-                Em análise
-              </p>
-            </button>
-
-            <button
-              type="button"
-              onClick={() =>
-                navigate('/app/entregas')
-              }
-              className="rounded-xl bg-slate-50 p-4 text-left transition hover:bg-slate-100 dark:bg-slate-800/50 dark:hover:bg-slate-800"
-            >
-              <p className="text-2xl font-bold text-blue-600">
-                1
-              </p>
-
-              <p className="mt-1 text-xs font-semibold text-slate-500">
-                Aguardando entrega
-              </p>
-            </button>
-
-            <button
-              type="button"
-              onClick={() =>
-                navigate('/app/entregas')
-              }
-              className="rounded-xl bg-slate-50 p-4 text-left transition hover:bg-slate-100 dark:bg-slate-800/50 dark:hover:bg-slate-800"
-            >
-              <p className="text-2xl font-bold text-emerald-600">
-                18
-              </p>
-
-              <p className="mt-1 text-xs font-semibold text-slate-500">
-                Entregues
-              </p>
-            </button>
-
-          </div>
-
-          <button
-            type="button"
-            onClick={() =>
-              navigate('/app/solicitacoes')
-            }
-            className="mt-5 text-sm font-bold text-brand-600 hover:underline"
-          >
-            Ver todas as solicitações →
-          </button>
-        </Card>
-
-        {/* ESTOQUE */}
-        <Card>
-          <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-            Situação do Estoque Central
-          </h2>
-
-          <p className="mt-1 text-sm text-slate-500">
-            Alertas que precisam de atenção da Central.
-          </p>
-
-          <div className="mt-5 space-y-3">
-
-            <div className="flex gap-3 rounded-xl border border-red-200 bg-red-50 p-4 dark:border-red-900 dark:bg-red-950/20">
-
-              <AlertTriangle
-                className="mt-0.5 text-red-600"
-                size={20}
-              />
 
               <div>
+
+                <p className="text-sm font-semibold text-slate-500">
+                  Estoque Central
+                </p>
+
+                <p className="mt-1 text-2xl font-black">
+                  128.540 doses
+                </p>
+
+              </div>
+
+              <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700">
+                OK
+              </span>
+
+            </button>
+
+            <button
+              onClick={() => navigate('/app/solicitacoes')}
+              className="flex w-full items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 p-5 transition hover:bg-slate-100"
+            >
+
+              <div>
+
+                <p className="text-sm font-semibold text-slate-500">
+                  Solicitações Pendentes
+                </p>
+
+                <p className="mt-1 text-2xl font-black">
+                  4 aguardando
+                </p>
+
+              </div>
+
+              <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-700">
+                4
+              </span>
+
+            </button>
+
+            <button
+              onClick={() => navigate('/app/entregas')}
+              className="flex w-full items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 p-5 transition hover:bg-slate-100"
+            >
+
+              <div>
+
+                <p className="text-sm font-semibold text-slate-500">
+                  Entregas
+                </p>
+
+                <p className="mt-1 text-2xl font-black">
+                  1 aguardando saída
+                </p>
+
+              </div>
+
+              <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-700">
+                1
+              </span>
+
+            </button>
+
+          </div>
+
+        </Card>
+
+        {/* ALERTAS */}
+
+        <Card className="rounded-3xl border-slate-200 p-7">
+
+          <div className="flex items-center justify-between">
+
+            <div>
+
+              <h2 className="text-xl font-bold text-slate-900">
+                Alertas
+              </h2>
+
+              <p className="mt-1 text-sm text-slate-500">
+                Situações que exigem atenção.
+              </p>
+
+            </div>
+
+            <AlertTriangle
+              size={28}
+              className="text-amber-600"
+            />
+
+          </div>
+
+          <div className="mt-7 space-y-4">
+
+            <div className="flex gap-4 rounded-2xl bg-red-50 p-5">
+
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-red-100">
+
+                <AlertTriangle
+                  size={22}
+                  className="text-red-600"
+                />
+
+              </div>
+
+              <div>
+
                 <p className="font-bold text-red-700">
-                  2 lotes vencidos
+                  Lotes vencidos
                 </p>
 
                 <p className="mt-1 text-sm text-red-600">
-                  Existem lotes que não podem mais ser distribuídos.
+                  Existem lotes que precisam ser descartados.
                 </p>
+
               </div>
 
             </div>
 
-            <div className="flex gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950/20">
+            <div className="flex gap-4 rounded-2xl bg-amber-50 p-5">
 
-              <AlertTriangle
-                className="mt-0.5 text-amber-600"
-                size={20}
-              />
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100">
+
+                <AlertTriangle
+                  size={22}
+                  className="text-amber-600"
+                />
+
+              </div>
 
               <div>
+
                 <p className="font-bold text-amber-700">
-                  3 lotes próximos do vencimento
+                  Próximos do vencimento
                 </p>
 
                 <p className="mt-1 text-sm text-amber-600">
-                  Existem lotes com validade inferior a 90 dias.
+                  Esses lotes serão priorizados automaticamente nas liberações.
                 </p>
+
               </div>
 
             </div>
 
-            <div className="flex gap-3 rounded-xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950/20">
+            <div className="flex gap-4 rounded-2xl bg-blue-50 p-5">
 
-              <Package
-                className="mt-0.5 text-blue-600"
-                size={20}
-              />
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-100">
+
+                <ClipboardList
+                  size={22}
+                  className="text-blue-600"
+                />
+
+              </div>
 
               <div>
+
                 <p className="font-bold text-blue-700">
-                  Consulte o estoque atualizado
+                  Solicitações aguardando análise
                 </p>
 
                 <p className="mt-1 text-sm text-blue-600">
-                  As doses disponíveis são calculadas pelos lotes cadastrados.
+                  Existem unidades aguardando autorização.
                 </p>
+
               </div>
 
             </div>
 
           </div>
-
-          <button
-            type="button"
-            onClick={() =>
-              navigate('/app/estoque')
-            }
-            className="mt-5 text-sm font-bold text-brand-600 hover:underline"
-          >
-            Abrir Estoque Central →
-          </button>
 
         </Card>
 
