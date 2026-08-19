@@ -69,7 +69,7 @@ export const MunicipalLayout = () => {
           SIDEBAR
       ===================================================== */}
 
-      <aside className="fixed left-0 top-0 z-40 hidden h-screen w-[270px] flex-col border-r border-slate-200 bg-white lg:flex">
+      <aside className="fixed left-0 top-0 z-40 flex h-screen w-[270px] flex-col border-r border-slate-200 bg-white">
 
         {/* LOGO */}
 
@@ -227,7 +227,7 @@ export const MunicipalLayout = () => {
           ÁREA PRINCIPAL
       ===================================================== */}
 
-      <div className="lg:pl-[270px]">
+      <div className="pl-[270px]">
 
         {/* TOPBAR */}
 

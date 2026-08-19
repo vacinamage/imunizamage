@@ -1,394 +1,979 @@
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Printer } from 'lucide-react';
+import {
+  FileText,
+  Printer,
+} from 'lucide-react';
 
-import { Button } from '../../components/ui';
+import {
+  useLocation,
+  useNavigate,
+  useParams,
+} from 'react-router-dom';
+
+import {
+  Button,
+  Card,
+} from '../../components/ui';
 
 import {
   getRequestByProtocol,
-  RequestItem,
 } from '../../data/mockRequests';
 
-type LocationState = {
-  memorandumNumber?: string;
-  analyzedItems?: RequestItem[];
+/* =========================================================
+   TIPOS
+========================================================= */
+
+type LotAllocation = {
+  lotId: string;
+  lotNumber: string;
+  expirationDate: string;
+  doses: number;
 };
 
-export const Memorandum = () => {
-  const navigate = useNavigate();
+type MemorandumItem = {
+  id: string;
+  vaccineId?: string;
+  vaccineName: string;
+  requestedQuantity?: number;
+  authorizedQuantity: number;
+  addedByCentral?: boolean;
+  lotNumber?: string;
+  lotAllocations?: LotAllocation[];
+};
 
-  const { protocol = '' } = useParams();
+type MemorandumState = {
+  memorandumNumber?: string;
+  analyzedItems?: MemorandumItem[];
+};
 
-  const location = useLocation();
+type PrintRow = {
+  id: string;
+  vaccineName: string;
+  lotNumber: string;
+  doses: number;
+};
 
-  const state =
-    (location.state || {}) as LocationState;
+/* =========================================================
+   FUNÇÕES
+========================================================= */
 
-  const request =
-    getRequestByProtocol(protocol);
-
-  if (!request) {
-    return (
-      <div className="p-8">
-        <h1 className="text-xl font-bold">
-          Solicitação não encontrada.
-        </h1>
-
-        <Button
-          className="mt-4"
-          onClick={() =>
-            navigate('/app/solicitacoes')
-          }
-        >
-          Voltar
-        </Button>
-      </div>
+const formatDate = (
+  value?: string
+) => {
+  if (!value) {
+    return new Date().toLocaleDateString(
+      'pt-BR'
     );
   }
 
+  /*
+   * Se já estiver no formato brasileiro,
+   * mantém como está.
+   */
+  if (
+    value.includes('/')
+  ) {
+    return value.split(',')[0];
+  }
+
+  const date =
+    new Date(value);
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return value;
+  }
+
+  return date.toLocaleDateString(
+    'pt-BR'
+  );
+};
+
+/* =========================================================
+   COMPONENTE
+========================================================= */
+
+export const Memorandum = () => {
+  const navigate =
+    useNavigate();
+
+  const location =
+    useLocation();
+
+  const {
+    protocol = '',
+  } = useParams();
+
+  const request =
+    getRequestByProtocol(
+      protocol
+    );
+
+  const state =
+    (location.state ||
+      {}) as MemorandumState;
+
   const memorandumNumber =
     state.memorandumNumber ||
-    request.memorandumNumber ||
-    'MEM-2026-000005';
+    `MEM-${new Date().getFullYear()}-${protocol
+      .replace(/\D/g, '')
+      .slice(-6)
+      .padStart(6, '0')}`;
 
-  const items =
-    state.analyzedItems ||
-    request.items;
+  /*
+   * Se veio da tela de autorização,
+   * usamos os itens analisados.
+   *
+   * Caso contrário, usamos os itens
+   * originais da solicitação como fallback.
+   */
+  const items:
+    MemorandumItem[] =
+    state.analyzedItems &&
+    state.analyzedItems.length >
+      0
+      ? state.analyzedItems
+      : request?.items.map(
+          (item) => ({
+            id: item.id,
+            vaccineId:
+              item.vaccineId,
+            vaccineName:
+              item.vaccineName,
 
-  const releaseDate =
-    request.authorizedAt ||
-    new Date().toLocaleString('pt-BR');
+            requestedQuantity:
+              item.requestedQuantity,
 
-  const requesterRole =
-    'ADMINISTRATIVO';
+            authorizedQuantity:
+              item.requestedQuantity,
 
-  const cnes =
-    '2278731';
+            lotAllocations: [],
+          })
+        ) ?? [];
 
-  const getLot = (
-    item: RequestItem
-  ) => {
-    /*
-     * Para os itens adicionados pela Central,
-     * o vaccineId está sendo usado temporariamente
-     * para guardar o lote.
-     */
-    if (item.addedByCentral) {
-      return item.vaccineId;
-    }
+  /* =======================================================
+     GERAR LINHAS PARA IMPRESSÃO
+  ======================================================= */
 
-    /*
-     * Enquanto o estoque ainda é mockado,
-     * os itens normais também usam vaccineId
-     * como referência demonstrativa.
-     *
-     * Quando conectarmos ao estoque real,
-     * este campo será substituído pelo lote
-     * selecionado no banco.
-     */
-    return item.vaccineId.toUpperCase();
-  };
+  const rows:
+    PrintRow[] = [];
 
-  const renderItems = () => {
-    return (
-      <table className="w-full border-collapse text-[10px]">
-        <thead>
-          <tr>
-            <th className="border border-black px-2 py-1 text-left font-bold">
-              Vacina
-            </th>
+  items
+    .filter(
+      (item) =>
+        item.authorizedQuantity >
+        0
+    )
+    .forEach(
+      (item) => {
+        /*
+         * Se a vacina saiu de mais de um lote,
+         * cria uma linha para cada lote.
+         */
+        if (
+          item.lotAllocations &&
+          item.lotAllocations
+            .length > 0
+        ) {
+          item.lotAllocations.forEach(
+            (
+              allocation,
+              allocationIndex
+            ) => {
+              rows.push({
+                id: `${item.id}-${allocation.lotId}-${allocationIndex}`,
 
-            <th className="w-[31%] border border-black px-2 py-1 text-left font-bold">
-              Lote
-            </th>
+                vaccineName:
+                  item.vaccineName,
 
-            <th className="w-[15%] border border-black px-2 py-1 text-left font-bold">
-              Qtd
-            </th>
-          </tr>
-        </thead>
+                lotNumber:
+                  allocation.lotNumber,
 
-        <tbody>
-          {items.map((item) => (
-            <tr key={item.id}>
-              <td className="border border-black px-2 py-1">
-                {item.vaccineName}
-              </td>
+                doses:
+                  allocation.doses,
+              });
+            }
+          );
 
-              <td className="border border-black px-2 py-1">
-                {getLot(item)}
-              </td>
+          return;
+        }
 
-              <td className="border border-black px-2 py-1">
-                {item.authorizedQuantity}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+        /*
+         * Compatibilidade com versões
+         * anteriores onde havia um lote único.
+         */
+        rows.push({
+          id: item.id,
+
+          vaccineName:
+            item.vaccineName,
+
+          lotNumber:
+            item.lotNumber ||
+            '-',
+
+          doses:
+            item.authorizedQuantity,
+        });
+      }
     );
-  };
 
-  const renderVoucher = (
-    copyTitle: string,
-    footerType:
-      | 'received'
-      | 'released'
-  ) => {
+  /* =======================================================
+     DIVISÃO DAS TABELAS
+  ======================================================= */
+
+  /*
+   * Até 10 linhas:
+   * tabela única.
+   *
+   * Acima de 10:
+   * divide a lista ao meio
+   * e mostra lado a lado.
+   */
+  const splitTable =
+    rows.length > 10;
+
+  const middleIndex =
+    Math.ceil(
+      rows.length / 2
+    );
+
+  const leftRows =
+    splitTable
+      ? rows.slice(
+          0,
+          middleIndex
+        )
+      : rows;
+
+  const rightRows =
+    splitTable
+      ? rows.slice(
+          middleIndex
+        )
+      : [];
+
+  const totalDoses =
+    rows.reduce(
+      (
+        total,
+        row
+      ) =>
+        total +
+        row.doses,
+      0
+    );
+
+  /* =======================================================
+     TABELA
+  ======================================================= */
+
+  const renderTable = (
+    tableRows:
+      PrintRow[]
+  ) => (
+    <table className="memorandum-table w-full border-collapse">
+
+      <thead>
+
+        <tr>
+
+          <th>
+            VACINA
+          </th>
+
+          <th className="memorandum-lot">
+            LOTE
+          </th>
+
+          <th className="memorandum-dose">
+            DOSES
+          </th>
+
+        </tr>
+
+      </thead>
+
+      <tbody>
+
+        {tableRows.map(
+          (row) => (
+            <tr
+              key={
+                row.id
+              }
+            >
+
+              <td>
+                {
+                  row.vaccineName
+                }
+              </td>
+
+              <td className="text-center">
+                {
+                  row.lotNumber
+                }
+              </td>
+
+              <td className="text-center font-bold">
+                {
+                  row.doses
+                }
+              </td>
+
+            </tr>
+          )
+        )}
+
+      </tbody>
+
+    </table>
+  );
+
+  /* =======================================================
+     SEM SOLICITAÇÃO
+  ======================================================= */
+
+  if (!request) {
     return (
-      <section className="voucher flex min-h-[132mm] flex-col bg-white px-4 py-3 text-black">
+      <Card className="mx-auto max-w-2xl rounded-3xl p-8">
+
+        <h1 className="text-2xl font-black">
+          Memorando não encontrado
+        </h1>
+
+        <p className="mt-2 text-slate-500">
+          Não foi possível localizar a solicitação relacionada a este memorando.
+        </p>
+
+        <Button
+          className="mt-6"
+          onClick={() =>
+            navigate(
+              '/app/solicitacoes'
+            )
+          }
+        >
+          Voltar às solicitações
+        </Button>
+
+      </Card>
+    );
+  }
+
+  return (
+    <div className="mx-auto max-w-[1200px]">
+
+      {/* =====================================================
+          BOTÕES DA TELA
+      ===================================================== */}
+
+      <div className="no-print mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+
+        <div>
+
+          <h1 className="text-3xl font-black text-slate-900">
+            Memorando
+          </h1>
+
+          <p className="mt-1 text-slate-500">
+            Visualização para impressão.
+          </p>
+
+        </div>
+
+        <Button
+          onClick={() =>
+            window.print()
+          }
+        >
+          <Printer
+            size={17}
+            className="mr-2"
+          />
+
+          Imprimir memorando
+        </Button>
+
+      </div>
+
+      {/* =====================================================
+          DOCUMENTO
+      ===================================================== */}
+
+      <div
+        id="memorandum-print"
+        className="memorandum-page bg-white text-black shadow-sm"
+      >
 
         {/* CABEÇALHO */}
-        <div className="flex items-start justify-between">
 
-          <div>
-            <div className="text-lg font-extrabold text-sky-600">
-              IMUNIZA+
+        <div className="memorandum-header">
+
+          <div className="memorandum-logo">
+
+            <div className="memorandum-logo-icon">
+              +
             </div>
 
-            <h1 className="mt-1 text-base font-bold">
-              Comprovante de liberação
+            <div>
+
+              <div className="memorandum-logo-main">
+                IMUNIZA
+              </div>
+
+              <div className="memorandum-logo-plus">
+                PLUS
+              </div>
+
+            </div>
+
+          </div>
+
+          <div className="memorandum-header-center">
+
+            <h1>
+              CENTRAL DE IMUNIZAÇÃO
             </h1>
 
-            <p className="text-[10px] text-gray-500">
-              Solicitação nº {request.protocol}
+            <p>
+              DISTRIBUIÇÃO DE IMUNOBIOLÓGICOS
             </p>
+
           </div>
 
-          <div className="rounded bg-sky-50 px-2 py-1 text-[9px] font-bold text-sky-600">
-            {copyTitle}
+          <div className="memorandum-icon">
+
+            <FileText
+              size={26}
+            />
+
           </div>
+
+        </div>
+
+        {/* TÍTULO */}
+
+        <div className="memorandum-title">
+
+          <h2>
+            MEMORANDO
+          </h2>
+
+          <strong>
+            {
+              memorandumNumber
+            }
+          </strong>
 
         </div>
 
         {/* DADOS */}
-        <div className="mt-2 grid grid-cols-2 gap-x-8 text-[9px] leading-4">
 
-          <div className="grid grid-cols-[70px_1fr]">
+        <div className="memorandum-info">
 
-            <span className="text-gray-500">
-              Solicitante
+          <div>
+
+            <span>
+              UNIDADE
             </span>
 
-            <span className="font-medium">
-              {request.requesterName}
-            </span>
-
-            <span className="text-gray-500">
-              Unidade
-            </span>
-
-            <span className="font-medium">
-              {request.unitName} – CNES {cnes}
-            </span>
+            <strong>
+              {
+                request.unitName
+              }
+            </strong>
 
           </div>
 
-          <div className="grid grid-cols-[60px_1fr]">
+          <div>
 
-            <span className="text-gray-500">
-              Cargo
+            <span>
+              SOLICITAÇÃO
             </span>
 
-            <span className="font-medium">
-              {requesterRole}
+            <strong>
+              {
+                request.protocol
+              }
+            </strong>
+
+          </div>
+
+          <div>
+
+            <span>
+              DATA
             </span>
 
-            <span className="text-gray-500">
-              Liberação
-            </span>
-
-            <span className="font-medium">
-              {releaseDate}
-            </span>
+            <strong>
+              {formatDate(
+                request.createdAt
+              )}
+            </strong>
 
           </div>
 
         </div>
 
-        {/* ITENS */}
-        <div className="mt-2">
+        {/* TEXTO */}
 
-          <h2 className="mb-1 text-[10px] font-bold">
-            Itens liberados
-          </h2>
+        <p className="memorandum-text">
+          Encaminhamos abaixo os imunobiológicos autorizados para atendimento da solicitação da unidade.
+        </p>
 
-          {renderItems()}
+        {/* =================================================
+            TABELAS
+        ================================================= */}
 
-        </div>
+        {!splitTable ? (
+          <div className="memorandum-single-table">
 
-        {/* ESPAÇO FLEXÍVEL */}
-        <div className="flex-1" />
-
-        {/* ASSINATURA */}
-        {footerType === 'received' ? (
-          <div className="mt-4 grid grid-cols-[1fr_130px] gap-8">
-
-            <div>
-              <div className="border-b border-black" />
-
-              <p className="mt-1 text-center text-[8px] text-gray-500">
-                Recebido por
-              </p>
-            </div>
-
-            <div>
-              <div className="border-b border-black" />
-
-              <p className="mt-1 text-center text-[8px] text-gray-500">
-                Data
-              </p>
-            </div>
+            {renderTable(
+              leftRows
+            )}
 
           </div>
         ) : (
-          <div className="mt-4 grid grid-cols-[1fr_130px] gap-8">
+          <div className="memorandum-double-table">
 
-            <div>
-              <p className="mb-1 text-[9px] font-semibold">
-                Imunização Central
-              </p>
+            <div className="memorandum-table-column">
 
-              <div className="border-b border-black" />
+              {renderTable(
+                leftRows
+              )}
 
-              <p className="mt-1 text-center text-[8px] text-gray-500">
-                Responsável pela liberação
-              </p>
             </div>
 
-            <div>
-              <p className="mb-1 text-[9px]">
-                {new Date().toLocaleDateString('pt-BR')}
-              </p>
+            <div className="memorandum-table-column">
 
-              <div className="border-b border-black" />
+              {renderTable(
+                rightRows
+              )}
 
-              <p className="mt-1 text-center text-[8px] text-gray-500">
-                Data
-              </p>
             </div>
 
           </div>
         )}
 
-        {/* RODAPÉ */}
-        <div className="mt-2 flex items-center justify-between border-t border-gray-200 pt-1 text-[8px] text-gray-500">
+        {/* TOTAL */}
+
+        <div className="memorandum-total">
 
           <span>
-            IMUNIZA+
+            TOTAL LIBERADO
           </span>
 
-          <span>
-            {memorandumNumber}
-          </span>
+          <strong>
+            {totalDoses.toLocaleString(
+              'pt-BR'
+            )}{' '}
+            DOSES
+          </strong>
 
         </div>
 
-      </section>
-    );
-  };
+        {/* OBSERVAÇÃO */}
 
-  return (
-    <>
-      <style>
-        {`
-          @page {
-            size: A4 portrait;
-            margin: 6mm;
-          }
+        <div className="memorandum-note">
 
-          @media print {
-            html,
-            body {
-              background: white !important;
-              margin: 0 !important;
-              padding: 0 !important;
-            }
+          <strong>
+            Observação:
+          </strong>{' '}
 
-            .no-print {
-              display: none !important;
-            }
-
-            .print-page {
-              width: 100%;
-              max-width: none !important;
-              margin: 0 !important;
-              padding: 0 !important;
-              box-shadow: none !important;
-            }
-
-            .voucher {
-              break-inside: avoid;
-              page-break-inside: avoid;
-            }
-          }
-        `}
-      </style>
-
-      <div className="mx-auto max-w-[1000px] space-y-4">
-
-        {/* BOTÕES */}
-        <div className="no-print flex items-center justify-between">
-
-          <Button
-            variant="outline"
-            onClick={() =>
-              navigate('/app/solicitacoes')
-            }
-          >
-            <ArrowLeft
-              size={16}
-              className="mr-2"
-            />
-
-            Voltar
-          </Button>
-
-          <Button
-            onClick={() =>
-              window.print()
-            }
-          >
-            <Printer
-              size={16}
-              className="mr-2"
-            />
-
-            Imprimir
-          </Button>
+          os lotes são selecionados automaticamente pelo sistema, priorizando os imunobiológicos válidos com vencimento mais próximo.
 
         </div>
 
-        {/* FOLHA A4 */}
-        <div className="print-page bg-gray-100 p-4">
+        {/* ASSINATURAS */}
 
-          <div className="mx-auto w-full max-w-[210mm] bg-white shadow-sm print:shadow-none">
+        <div className="memorandum-signatures">
 
-            {/* VIA PROGRAMA */}
-            {renderVoucher(
-              'Via Programa de Imunização',
-              'received'
-            )}
+          <div className="signature-block">
 
-            {/* LINHA DE CORTE */}
-            <div className="relative my-1 border-t border-dashed border-gray-400">
+            <div className="signature-line" />
 
-              <span className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 bg-white px-3 text-[8px] text-gray-500">
-                Recorte aqui
-              </span>
+            <strong>
+              RECEBIDO PELA UNIDADE
+            </strong>
 
-            </div>
+            <p>
+              Nome / assinatura
+            </p>
 
-            {/* VIA UNIDADE */}
-            {renderVoucher(
-              'Via Unidade Solicitante',
-              'released'
-            )}
+            <p className="signature-date">
+              Data: ______ / ______ / ______
+            </p>
+
+          </div>
+
+          <div className="signature-block">
+
+            <div className="signature-line" />
+
+            <strong>
+              CENTRAL DE IMUNIZAÇÃO
+            </strong>
+
+            <p>
+              Responsável pela liberação
+            </p>
+
+            <p className="signature-date">
+              Data: ______ / ______ / ______
+            </p>
 
           </div>
 
         </div>
 
+        {/* RODAPÉ */}
+
+        <div className="memorandum-footer">
+
+          <span>
+            IMUNIZA PLUS
+          </span>
+
+          <span>
+            {
+              request.protocol
+            }
+          </span>
+
+          <span>
+            Página 1 de 1
+          </span>
+
+        </div>
+
       </div>
-    </>
+
+      {/* =====================================================
+          CSS DO MEMORANDO
+      ===================================================== */}
+
+      <style>
+        {`
+
+        .memorandum-page {
+          width: 210mm;
+          min-height: 297mm;
+          margin: 0 auto;
+          padding: 10mm 11mm 8mm;
+          box-sizing: border-box;
+          font-family: Arial, Helvetica, sans-serif;
+        }
+
+        .memorandum-header {
+          display: grid;
+          grid-template-columns: 1fr 1.5fr 1fr;
+          align-items: center;
+          border-bottom: 2px solid #1e3a8a;
+          padding-bottom: 7px;
+        }
+
+        .memorandum-logo {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .memorandum-logo-icon {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 34px;
+          height: 34px;
+          border-radius: 8px;
+          background: #2563eb;
+          color: white;
+          font-size: 25px;
+          font-weight: 800;
+          line-height: 1;
+        }
+
+        .memorandum-logo-main {
+          color: #2563eb;
+          font-size: 15px;
+          line-height: 1;
+          font-weight: 900;
+        }
+
+        .memorandum-logo-plus {
+          color: #38bdf8;
+          margin-top: 2px;
+          font-size: 10px;
+          letter-spacing: 2px;
+          font-weight: 800;
+        }
+
+        .memorandum-header-center {
+          text-align: center;
+        }
+
+        .memorandum-header-center h1 {
+          margin: 0;
+          font-size: 12px;
+          font-weight: 800;
+        }
+
+        .memorandum-header-center p {
+          margin: 3px 0 0;
+          font-size: 7.5px;
+          font-weight: 600;
+          letter-spacing: .7px;
+        }
+
+        .memorandum-icon {
+          display: flex;
+          justify-content: flex-end;
+          color: #2563eb;
+        }
+
+        .memorandum-title {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-top: 8px;
+          padding: 7px 10px;
+          border-radius: 5px;
+          background: #eff6ff;
+          border: 1px solid #bfdbfe;
+        }
+
+        .memorandum-title h2 {
+          margin: 0;
+          font-size: 13px;
+          font-weight: 900;
+          letter-spacing: 1px;
+        }
+
+        .memorandum-title strong {
+          font-size: 10px;
+          color: #1d4ed8;
+        }
+
+        .memorandum-info {
+          display: grid;
+          grid-template-columns: 2fr 1.25fr .8fr;
+          gap: 5px;
+          margin-top: 7px;
+        }
+
+        .memorandum-info > div {
+          border: 1px solid #d1d5db;
+          border-radius: 4px;
+          padding: 5px 7px;
+        }
+
+        .memorandum-info span {
+          display: block;
+          color: #6b7280;
+          font-size: 6.5px;
+          font-weight: 800;
+          letter-spacing: .5px;
+        }
+
+        .memorandum-info strong {
+          display: block;
+          margin-top: 2px;
+          font-size: 8.5px;
+          line-height: 1.2;
+        }
+
+        .memorandum-text {
+          margin: 7px 0;
+          font-size: 8px;
+          line-height: 1.3;
+        }
+
+        .memorandum-single-table {
+          width: 100%;
+        }
+
+        .memorandum-double-table {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 6px;
+          align-items: start;
+        }
+
+        .memorandum-table-column {
+          min-width: 0;
+        }
+
+        .memorandum-table {
+          table-layout: fixed;
+          font-size: 7.5px;
+        }
+
+        .memorandum-table th {
+          padding: 4px 4px;
+          border: 1px solid #9ca3af;
+          background: #e5e7eb;
+          font-size: 6.8px;
+          font-weight: 900;
+          text-align: left;
+        }
+
+        .memorandum-table td {
+          height: 18px;
+          padding: 3px 4px;
+          border: 1px solid #cbd5e1;
+          line-height: 1.15;
+          vertical-align: middle;
+          overflow-wrap: anywhere;
+        }
+
+        .memorandum-table th:first-child {
+          width: auto;
+        }
+
+        .memorandum-lot {
+          width: 29%;
+          text-align: center !important;
+        }
+
+        .memorandum-dose {
+          width: 17%;
+          text-align: center !important;
+        }
+
+        .memorandum-total {
+          display: flex;
+          align-items: center;
+          justify-content: flex-end;
+          gap: 14px;
+          margin-top: 6px;
+          border-top: 1px solid #d1d5db;
+          padding-top: 5px;
+        }
+
+        .memorandum-total span {
+          font-size: 7px;
+          font-weight: 800;
+          color: #6b7280;
+        }
+
+        .memorandum-total strong {
+          font-size: 10px;
+          color: #1d4ed8;
+        }
+
+        .memorandum-note {
+          margin-top: 6px;
+          padding: 5px 7px;
+          border-radius: 4px;
+          background: #f8fafc;
+          font-size: 7px;
+          line-height: 1.25;
+          color: #475569;
+        }
+
+        .memorandum-signatures {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 25mm;
+          margin-top: 15mm;
+          padding: 0 10mm;
+        }
+
+        .signature-block {
+          text-align: center;
+        }
+
+        .signature-line {
+          border-top: 1px solid #111827;
+          margin-bottom: 5px;
+        }
+
+        .signature-block strong {
+          display: block;
+          font-size: 7.5px;
+        }
+
+        .signature-block p {
+          margin: 3px 0 0;
+          font-size: 6.5px;
+          color: #6b7280;
+        }
+
+        .signature-date {
+          margin-top: 6px !important;
+        }
+
+        .memorandum-footer {
+          display: flex;
+          justify-content: space-between;
+          margin-top: 9mm;
+          border-top: 1px solid #e5e7eb;
+          padding-top: 4px;
+          color: #94a3b8;
+          font-size: 6px;
+          font-weight: 600;
+        }
+
+        @media print {
+
+          @page {
+            size: A4 portrait;
+            margin: 0;
+          }
+
+          html,
+          body {
+            width: 210mm;
+            height: 297mm;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: white !important;
+          }
+
+          body * {
+            visibility: hidden !important;
+          }
+
+          #memorandum-print,
+          #memorandum-print * {
+            visibility: visible !important;
+          }
+
+          #memorandum-print {
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 210mm !important;
+            height: 297mm !important;
+            min-height: 297mm !important;
+            margin: 0 !important;
+            padding: 8mm 10mm 6mm !important;
+            box-shadow: none !important;
+            overflow: hidden !important;
+          }
+
+          .no-print {
+            display: none !important;
+          }
+
+          .memorandum-table tr {
+            break-inside: avoid;
+            page-break-inside: avoid;
+          }
+
+          .memorandum-signatures {
+            break-inside: avoid;
+            page-break-inside: avoid;
+          }
+
+        }
+
+        `}
+      </style>
+
+    </div>
   );
 };

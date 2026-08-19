@@ -4,10 +4,7 @@ import {
   useState,
 } from 'react';
 
-import { useNavigate } from 'react-router-dom';
-
 import {
-  ArrowLeft,
   Search,
   Package,
   Syringe,
@@ -67,6 +64,7 @@ type StockLot = {
   id: string;
   vaccineId: string;
   lotNumber: string;
+  documentNumber?: string;
   expirationDate: string;
   doses: number;
 };
@@ -80,8 +78,9 @@ type StockMovement = {
   date: string;
   description?: string;
 };
+
 /* =========================================================
-   LOCAL STORAGE
+   STORAGE
 ========================================================= */
 
 const VACCINE_STORAGE_KEY =
@@ -92,8 +91,9 @@ const LOTS_STORAGE_KEY =
 
 const MOVEMENTS_STORAGE_KEY =
   'imuniza-central-movements';
+
 /* =========================================================
-   LOTES DEMONSTRATIVOS
+   LOTES INICIAIS
 ========================================================= */
 
 const DEFAULT_LOTS: StockLot[] = [
@@ -101,45 +101,46 @@ const DEFAULT_LOTS: StockLot[] = [
     id: 'lot-001',
     vaccineId: 'bcg',
     lotNumber: '0375MA047',
+    documentNumber: 'DOC-2026-001',
     expirationDate: '2027-12-15',
     doses: 500,
   },
-
   {
     id: 'lot-002',
     vaccineId: 'bcg',
     lotNumber: '0375MA052',
+    documentNumber: 'DOC-2026-002',
     expirationDate: '2028-03-20',
     doses: 350,
   },
-
   {
     id: 'lot-003',
     vaccineId: 'influenza',
     lotNumber: '2601400',
+    documentNumber: 'DOC-2026-003',
     expirationDate: '2026-09-30',
     doses: 700,
   },
-
   {
     id: 'lot-004',
     vaccineId: 'pentavalente',
     lotNumber: '2855Y005D',
+    documentNumber: 'DOC-2026-004',
     expirationDate: '2027-09-20',
     doses: 700,
   },
-
   {
     id: 'lot-005',
     vaccineId: 'vip',
     lotNumber: 'Y3F76D1',
+    documentNumber: 'DOC-2026-005',
     expirationDate: '2027-03-10',
     doses: 420,
   },
 ];
 
 /* =========================================================
-   FUNÇÕES
+   LOAD
 ========================================================= */
 
 const loadVaccineOverrides =
@@ -150,11 +151,9 @@ const loadVaccineOverrides =
           VACCINE_STORAGE_KEY
         );
 
-      if (!saved) {
-        return {};
-      }
-
-      return JSON.parse(saved);
+      return saved
+        ? JSON.parse(saved)
+        : {};
     } catch {
       return {};
     }
@@ -168,30 +167,33 @@ const loadLots =
           LOTS_STORAGE_KEY
         );
 
-      if (!saved) {
-        return DEFAULT_LOTS;
-      }
-
-      return JSON.parse(saved);
+      return saved
+        ? JSON.parse(saved)
+        : DEFAULT_LOTS;
     } catch {
       return DEFAULT_LOTS;
     }
   };
-const loadMovements = (): StockMovement[] => {
-  try {
-    const saved = localStorage.getItem(
-      MOVEMENTS_STORAGE_KEY
-    );
 
-    if (!saved) {
+const loadMovements =
+  (): StockMovement[] => {
+    try {
+      const saved =
+        localStorage.getItem(
+          MOVEMENTS_STORAGE_KEY
+        );
+
+      return saved
+        ? JSON.parse(saved)
+        : [];
+    } catch {
       return [];
     }
+  };
 
-    return JSON.parse(saved);
-  } catch {
-    return [];
-  }
-};
+/* =========================================================
+   IMAGEM
+========================================================= */
 
 const resizeImage = (
   file: File
@@ -220,10 +222,12 @@ const resizeImage = (
             );
 
           canvas.width =
-            image.width * scale;
+            image.width *
+            scale;
 
           canvas.height =
-            image.height * scale;
+            image.height *
+            scale;
 
           const context =
             canvas.getContext(
@@ -275,6 +279,10 @@ const resizeImage = (
     }
   );
 };
+
+/* =========================================================
+   DATAS / STATUS
+========================================================= */
 
 const formatDate = (
   value: string
@@ -344,9 +352,6 @@ const getLotStatus = (
 ========================================================= */
 
 export const CentralStock = () => {
-  const navigate =
-    useNavigate();
-
   const [
     activeTab,
     setActiveTab,
@@ -428,12 +433,13 @@ export const CentralStock = () => {
       loadLots
     );
 
-const [
-  movements,
-  setMovements,
-] = useState<StockMovement[]>(
-  loadMovements
-);
+  const [
+    movements,
+    setMovements,
+  ] =
+    useState<StockMovement[]>(
+      loadMovements
+    );
 
   const [
     lotSearch,
@@ -468,6 +474,12 @@ const [
     useState('');
 
   const [
+    lotDocumentNumber,
+    setLotDocumentNumber,
+  ] =
+    useState('');
+
+  const [
     lotExpirationDate,
     setLotExpirationDate,
   ] =
@@ -480,7 +492,7 @@ const [
     useState(0);
 
   /* =======================================================
-     VACINAS COM ALTERAÇÕES
+     CATÁLOGO
   ======================================================= */
 
   const vaccines =
@@ -488,17 +500,12 @@ const [
       return vaccineCatalog.map(
         (vaccine) => ({
           ...vaccine,
-
           ...overrides[
             vaccine.id
           ],
         })
       );
     }, [overrides]);
-
-  /* =======================================================
-     DOSES POR VACINA
-  ======================================================= */
 
   const getVaccineDoses = (
     vaccineId: string
@@ -522,10 +529,6 @@ const [
         0
       );
   };
-
-  /* =======================================================
-     VACINAS FILTRADAS
-  ======================================================= */
 
   const filteredVaccines =
     useMemo(() => {
@@ -562,10 +565,6 @@ const [
       categoryFilter,
     ]);
 
-  /* =======================================================
-     LOTES FILTRADOS
-  ======================================================= */
-
   const filteredLots =
     useMemo(() => {
       const term =
@@ -587,6 +586,9 @@ const [
             lot.lotNumber
               .toLowerCase()
               .includes(term) ||
+            lot.documentNumber
+              ?.toLowerCase()
+              .includes(term) ||
             vaccine?.name
               .toLowerCase()
               .includes(term)
@@ -602,9 +604,6 @@ const [
   /* =======================================================
      INDICADORES
   ======================================================= */
-
-  const totalVaccines =
-    vaccines.length;
 
   const activeVaccines =
     vaccines.filter(
@@ -657,8 +656,7 @@ const [
         ) ===
         'VENCIDO'
     ).length;
-
-  /* =======================================================
+      /* =======================================================
      SALVAR OVERRIDES
   ======================================================= */
 
@@ -679,7 +677,7 @@ const [
   };
 
   /* =======================================================
-     FOTO
+     FOTO DA VACINA
   ======================================================= */
 
   const handlePhoto =
@@ -745,7 +743,7 @@ const [
 
     setEditImage(
       vaccine.imageUrl ||
-        ''
+      ''
     );
 
     setEditActive(
@@ -844,6 +842,10 @@ const [
       ''
     );
 
+    setLotDocumentNumber(
+      ''
+    );
+
     setLotExpirationDate(
       ''
     );
@@ -876,6 +878,11 @@ const [
       lot.lotNumber
     );
 
+    setLotDocumentNumber(
+      lot.documentNumber ||
+      ''
+    );
+
     setLotExpirationDate(
       lot.expirationDate
     );
@@ -893,112 +900,259 @@ const [
      SALVAR LOTE
   ======================================================= */
 
- const saveLot = () => {
-  if (!lotVaccineId) {
-    alert('Selecione a vacina.');
-    return;
-  }
-
-  if (!lotNumber.trim()) {
-    alert('Informe o número do lote.');
-    return;
-  }
-
-  if (!lotExpirationDate) {
-    alert('Informe a validade.');
-    return;
-  }
-
-  if (lotDoses <= 0) {
-    alert('Informe um número de doses maior que zero.');
-    return;
-  }
-
-  let updatedLots: StockLot[];
-
-  if (editingLot) {
-    updatedLots = lots.map((lot) =>
-      lot.id === editingLot.id
-        ? {
-            ...lot,
-            vaccineId: lotVaccineId,
-            lotNumber: lotNumber.trim(),
-            expirationDate: lotExpirationDate,
-            doses: lotDoses,
-          }
-        : lot
-    );
-  } else {
-    const existingLot = lots.find(
-      (lot) =>
-        lot.vaccineId === lotVaccineId &&
-        lot.lotNumber.toLowerCase() ===
-          lotNumber.trim().toLowerCase()
-    );
-
-    if (existingLot) {
-      updatedLots = lots.map((lot) =>
-        lot.id === existingLot.id
-          ? {
-              ...lot,
-              doses: lot.doses + lotDoses,
-              expirationDate: lotExpirationDate,
-            }
-          : lot
+  const saveLot = () => {
+    if (!lotVaccineId) {
+      alert(
+        'Selecione a vacina.'
       );
-    } else {
-      const newLot: StockLot = {
-        id: `lot-${Date.now()}`,
-        vaccineId: lotVaccineId,
-        lotNumber: lotNumber.trim(),
-        expirationDate: lotExpirationDate,
-        doses: lotDoses,
-      };
 
-      updatedLots = [
-        ...lots,
-        newLot,
-      ];
+      return;
     }
 
-    const newMovement: StockMovement = {
-      id: `mov-${Date.now()}`,
-      type: 'ENTRADA',
-      vaccineId: lotVaccineId,
-      lotNumber: lotNumber.trim(),
-      doses: lotDoses,
-      date: new Date().toISOString(),
-      description: 'Entrada no Estoque Central',
-    };
+    if (
+      !lotNumber.trim()
+    ) {
+      alert(
+        'Informe o número do lote.'
+      );
 
-    const updatedMovements = [
-      newMovement,
-      ...movements,
-    ];
+      return;
+    }
 
-    setMovements(updatedMovements);
+    if (
+      !lotExpirationDate
+    ) {
+      alert(
+        'Informe a validade.'
+      );
+
+      return;
+    }
+
+    if (
+      lotDoses <= 0
+    ) {
+      alert(
+        'Informe um número de doses maior que zero.'
+      );
+
+      return;
+    }
+
+    let updatedLots:
+      StockLot[];
+
+    /* =====================================================
+       EDITANDO LOTE
+    ===================================================== */
+
+    if (editingLot) {
+      updatedLots =
+        lots.map(
+          (lot) =>
+            lot.id ===
+            editingLot.id
+              ? {
+                  ...lot,
+
+                  vaccineId:
+                    lotVaccineId,
+
+                  lotNumber:
+                    lotNumber.trim(),
+
+                  documentNumber:
+                    lotDocumentNumber
+                      .trim() ||
+                    undefined,
+
+                  expirationDate:
+                    lotExpirationDate,
+
+                  doses:
+                    lotDoses,
+                }
+              : lot
+        );
+    }
+
+    /* =====================================================
+       NOVO LOTE / NOVA ENTRADA
+    ===================================================== */
+
+    else {
+      const existingLot =
+        lots.find(
+          (lot) =>
+            lot.vaccineId ===
+              lotVaccineId &&
+            lot.lotNumber
+              .toLowerCase() ===
+              lotNumber
+                .trim()
+                .toLowerCase()
+        );
+
+      /* ===================================================
+         LOTE JÁ EXISTE
+      =================================================== */
+
+      if (existingLot) {
+        updatedLots =
+          lots.map(
+            (lot) =>
+              lot.id ===
+              existingLot.id
+                ? {
+                    ...lot,
+
+                    doses:
+                      lot.doses +
+                      lotDoses,
+
+                    expirationDate:
+                      lotExpirationDate,
+
+                    documentNumber:
+                      lotDocumentNumber
+                        .trim() ||
+                      lot.documentNumber,
+                  }
+                : lot
+          );
+      }
+
+      /* ===================================================
+         NOVO LOTE
+      =================================================== */
+
+      else {
+        const newLot:
+          StockLot = {
+          id:
+            `lot-${Date.now()}`,
+
+          vaccineId:
+            lotVaccineId,
+
+          lotNumber:
+            lotNumber.trim(),
+
+          documentNumber:
+            lotDocumentNumber
+              .trim() ||
+            undefined,
+
+          expirationDate:
+            lotExpirationDate,
+
+          doses:
+            lotDoses,
+        };
+
+        updatedLots = [
+          ...lots,
+          newLot,
+        ];
+      }
+
+      /* ===================================================
+         MOVIMENTAÇÃO DE ENTRADA
+      =================================================== */
+
+      const newMovement:
+        StockMovement = {
+        id:
+          `mov-${Date.now()}`,
+
+        type:
+          'ENTRADA',
+
+        vaccineId:
+          lotVaccineId,
+
+        lotNumber:
+          lotNumber.trim(),
+
+        doses:
+          lotDoses,
+
+        date:
+          new Date()
+            .toISOString(),
+
+        description:
+          lotDocumentNumber
+            .trim()
+            ? `Entrada no Estoque Central • Documento ${lotDocumentNumber.trim()}`
+            : 'Entrada no Estoque Central',
+      };
+
+      const updatedMovements =
+        [
+          newMovement,
+          ...movements,
+        ];
+
+      setMovements(
+        updatedMovements
+      );
+
+      localStorage.setItem(
+        MOVEMENTS_STORAGE_KEY,
+        JSON.stringify(
+          updatedMovements
+        )
+      );
+    }
+
+    /* =====================================================
+       SALVAR LOTES
+    ===================================================== */
+
+    setLots(
+      updatedLots
+    );
 
     localStorage.setItem(
-      MOVEMENTS_STORAGE_KEY,
-      JSON.stringify(updatedMovements)
+      LOTS_STORAGE_KEY,
+      JSON.stringify(
+        updatedLots
+      )
     );
-  }
 
-  setLots(updatedLots);
+    /* =====================================================
+       LIMPAR MODAL
+    ===================================================== */
 
-  localStorage.setItem(
-    LOTS_STORAGE_KEY,
-    JSON.stringify(updatedLots)
-  );
+    setShowLotModal(
+      false
+    );
 
-  setShowLotModal(false);
+    setEditingLot(
+      null
+    );
 
-  setEditingLot(null);
-  setLotVaccineId('');
-  setLotNumber('');
-  setLotExpirationDate('');
-  setLotDoses(0);
-};
+    setLotVaccineId(
+      ''
+    );
+
+    setLotNumber(
+      ''
+    );
+
+    setLotDocumentNumber(
+      ''
+    );
+
+    setLotExpirationDate(
+      ''
+    );
+
+    setLotDoses(
+      0
+    );
+  };
 
   /* =======================================================
      EXCLUIR LOTE
@@ -1021,7 +1175,8 @@ const [
     const updated =
       lots.filter(
         (lot) =>
-          lot.id !== lotId
+          lot.id !==
+          lotId
       );
 
     setLots(
@@ -1037,7 +1192,7 @@ const [
   };
 
   /* =======================================================
-     STATUS BADGE
+     STATUS DO LOTE
   ======================================================= */
 
   const lotBadge = (
@@ -1109,8 +1264,7 @@ const [
         'Movimentações',
     },
   ] as const;
-
-  /* =========================================================
+    /* =========================================================
      RETURN
   ========================================================= */
 
@@ -1121,60 +1275,40 @@ const [
 
       <header>
 
-        <button
-          type="button"
-          onClick={() =>
-            navigate(
-              '/app'
-            )
-          }
-          className="mb-3 flex items-center gap-2 text-sm font-bold text-brand-600 hover:underline"
-        >
-          <ArrowLeft
-            size={16}
-          />
-
-          Voltar ao menu
-        </button>
-
-        <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
+        <h1 className="text-3xl font-black text-slate-900 dark:text-white">
           Estoque Central
         </h1>
 
         <p className="mt-1 text-slate-500">
-          Controle de vacinas, doses, lotes e movimentações da Central de Imunização.
+          Controle de vacinas, doses, lotes, documentos e movimentações da Central de Imunização.
         </p>
 
       </header>
 
       {/* ABAS */}
 
-      <Card className="p-2">
+      <Card className="rounded-2xl p-2">
 
         <div className="flex gap-2 overflow-x-auto">
 
           {tabs.map(
             (tab) => (
               <button
-                key={
-                  tab.key
-                }
+                key={tab.key}
                 type="button"
                 onClick={() =>
                   setActiveTab(
                     tab.key
                   )
                 }
-                className={`whitespace-nowrap rounded-lg px-4 py-2 text-sm font-bold transition ${
+                className={`whitespace-nowrap rounded-xl px-4 py-2.5 text-sm font-bold transition ${
                   activeTab ===
                   tab.key
-                    ? 'bg-brand-600 text-white'
+                    ? 'bg-blue-600 text-white'
                     : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
                 }`}
               >
-                {
-                  tab.label
-                }
+                {tab.label}
               </button>
             )
           )}
@@ -1193,7 +1327,7 @@ const [
 
           <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
 
-            <Card>
+            <Card className="rounded-2xl">
 
               <div className="flex items-center justify-between">
 
@@ -1203,7 +1337,7 @@ const [
                     Vacinas ativas
                   </p>
 
-                  <p className="mt-2 text-3xl font-bold">
+                  <p className="mt-2 text-3xl font-black">
                     {
                       activeVaccines
                     }
@@ -1211,16 +1345,19 @@ const [
 
                 </div>
 
-                <Syringe
-                  size={28}
-                  className="text-brand-600"
-                />
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
+
+                  <Syringe
+                    size={25}
+                  />
+
+                </div>
 
               </div>
 
             </Card>
 
-            <Card>
+            <Card className="rounded-2xl">
 
               <div className="flex items-center justify-between">
 
@@ -1230,7 +1367,7 @@ const [
                     Doses em estoque
                   </p>
 
-                  <p className="mt-2 text-3xl font-bold text-brand-600">
+                  <p className="mt-2 text-3xl font-black text-blue-600">
                     {totalDoses.toLocaleString(
                       'pt-BR'
                     )}
@@ -1238,16 +1375,19 @@ const [
 
                 </div>
 
-                <Package
-                  size={28}
-                  className="text-brand-600"
-                />
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
+
+                  <Package
+                    size={25}
+                  />
+
+                </div>
 
               </div>
 
             </Card>
 
-            <Card>
+            <Card className="rounded-2xl">
 
               <div className="flex items-center justify-between">
 
@@ -1257,7 +1397,7 @@ const [
                     Lotes ativos
                   </p>
 
-                  <p className="mt-2 text-3xl font-bold text-emerald-600">
+                  <p className="mt-2 text-3xl font-black text-emerald-600">
                     {
                       activeLots
                     }
@@ -1265,16 +1405,19 @@ const [
 
                 </div>
 
-                <Boxes
-                  size={28}
-                  className="text-emerald-600"
-                />
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
+
+                  <Boxes
+                    size={25}
+                  />
+
+                </div>
 
               </div>
 
             </Card>
 
-            <Card>
+            <Card className="rounded-2xl">
 
               <div className="flex items-center justify-between">
 
@@ -1284,7 +1427,7 @@ const [
                     Lotes em atenção
                   </p>
 
-                  <p className="mt-2 text-3xl font-bold text-amber-600">
+                  <p className="mt-2 text-3xl font-black text-amber-600">
                     {
                       alertLots
                     }
@@ -1292,10 +1435,13 @@ const [
 
                 </div>
 
-                <CalendarDays
-                  size={28}
-                  className="text-amber-600"
-                />
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-50 text-amber-600">
+
+                  <CalendarDays
+                    size={25}
+                  />
+
+                </div>
 
               </div>
 
@@ -1305,7 +1451,7 @@ const [
 
           {expiredLots >
             0 && (
-            <Card>
+            <Card className="rounded-2xl">
 
               <p className="font-bold text-red-600">
                 {expiredLots}{' '}
@@ -1332,7 +1478,7 @@ const [
 
           <div>
 
-            <h2 className="text-xl font-bold">
+            <h2 className="text-xl font-black">
               Vacinas
             </h2>
 
@@ -1342,7 +1488,7 @@ const [
 
           </div>
 
-          <Card>
+          <Card className="rounded-2xl">
 
             <div className="flex flex-col gap-3 md:flex-row">
 
@@ -1350,7 +1496,7 @@ const [
 
                 <Search
                   size={18}
-                  className="absolute left-3 top-2.5 text-slate-400"
+                  className="absolute left-3 top-3 text-slate-400"
                 />
 
                 <input
@@ -1366,7 +1512,7 @@ const [
                     )
                   }
                   placeholder="Buscar vacina..."
-                  className="w-full rounded-lg border border-slate-200 bg-transparent py-2 pl-10 pr-4 outline-none dark:border-slate-700"
+                  className="w-full rounded-xl border border-slate-200 bg-transparent py-2.5 pl-10 pr-4 outline-none dark:border-slate-700"
                 />
 
               </div>
@@ -1385,7 +1531,7 @@ const [
                       | VaccineCategory
                   )
                 }
-                className="rounded-lg border border-slate-200 bg-white px-4 py-2 dark:border-slate-700 dark:bg-slate-900"
+                className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 dark:border-slate-700 dark:bg-slate-900"
               >
 
                 <option value="TODAS">
@@ -1432,11 +1578,11 @@ const [
                     key={
                       vaccine.id
                     }
-                    className={
+                    className={`rounded-2xl ${
                       vaccine.active
                         ? ''
                         : 'opacity-60'
-                    }
+                    }`}
                   >
 
                     <div className="flex h-40 items-center justify-center overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-800">
@@ -1474,7 +1620,7 @@ const [
 
                         <div>
 
-                          <h3 className="font-bold">
+                          <h3 className="font-black">
                             {
                               vaccine.name
                             }
@@ -1508,7 +1654,7 @@ const [
                           Doses em estoque
                         </p>
 
-                        <p className="mt-1 text-2xl font-bold text-brand-600">
+                        <p className="mt-1 text-2xl font-black text-blue-600">
                           {doses.toLocaleString(
                             'pt-BR'
                           )}
@@ -1578,12 +1724,12 @@ const [
 
             <div>
 
-              <h2 className="text-xl font-bold">
+              <h2 className="text-xl font-black">
                 Lotes
               </h2>
 
               <p className="mt-1 text-sm text-slate-500">
-                Controle os lotes, validade e doses disponíveis.
+                Controle os lotes, documentos, validade e doses disponíveis.
               </p>
 
             </div>
@@ -1603,13 +1749,13 @@ const [
 
           </div>
 
-          <Card>
+          <Card className="rounded-2xl">
 
             <div className="relative max-w-lg">
 
               <Search
                 size={18}
-                className="absolute left-3 top-2.5 text-slate-400"
+                className="absolute left-3 top-3 text-slate-400"
               />
 
               <input
@@ -1624,15 +1770,15 @@ const [
                       .value
                   )
                 }
-                placeholder="Buscar vacina ou lote..."
-                className="w-full rounded-lg border border-slate-200 bg-transparent py-2 pl-10 pr-4 outline-none dark:border-slate-700"
+                placeholder="Buscar vacina, lote ou documento..."
+                className="w-full rounded-xl border border-slate-200 bg-transparent py-2.5 pl-10 pr-4 outline-none dark:border-slate-700"
               />
 
             </div>
 
           </Card>
 
-          <Card className="overflow-hidden p-0">
+          <Card className="overflow-hidden rounded-2xl p-0">
 
             <div className="overflow-x-auto">
 
@@ -1648,6 +1794,10 @@ const [
 
                     <th className="px-5 py-4 text-xs font-bold uppercase text-slate-500">
                       Lote
+                    </th>
+
+                    <th className="px-5 py-4 text-xs font-bold uppercase text-slate-500">
+                      Documento
                     </th>
 
                     <th className="px-5 py-4 text-xs font-bold uppercase text-slate-500">
@@ -1699,10 +1849,15 @@ const [
                               'Vacina não encontrada'}
                           </td>
 
-                          <td className="px-5 py-4 text-sm">
+                          <td className="px-5 py-4 text-sm font-semibold">
                             {
                               lot.lotNumber
                             }
+                          </td>
+
+                          <td className="px-5 py-4 text-sm">
+                            {lot.documentNumber ||
+                              '-'}
                           </td>
 
                           <td className="px-5 py-4 text-sm">
@@ -1711,7 +1866,7 @@ const [
                             )}
                           </td>
 
-                          <td className="px-5 py-4 text-right font-bold text-brand-600">
+                          <td className="px-5 py-4 text-right font-black text-blue-600">
                             {lot.doses.toLocaleString(
                               'pt-BR'
                             )}
@@ -1773,217 +1928,283 @@ const [
 
         </>
       )}
-
-      {/* =====================================================
+            {/* =====================================================
           ENTRADAS
       ===================================================== */}
 
-      {activeTab === 'ENTRADAS' && (
-  <>
-    <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-      <div>
-        <h2 className="text-xl font-bold">
-          Entradas
-        </h2>
+      {activeTab ===
+        'ENTRADAS' && (
+        <>
 
-        <p className="mt-1 text-sm text-slate-500">
-          Registre o recebimento de vacinas na Central de Imunização.
-        </p>
-      </div>
+          <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
 
-      <Button
-        onClick={() => {
-          setEditingLot(null);
-          setLotVaccineId('');
-          setLotNumber('');
-          setLotExpirationDate('');
-          setLotDoses(0);
-          setShowLotModal(true);
-        }}
-      >
-        <Plus
-          size={16}
-          className="mr-2"
-        />
+            <div>
 
-        Nova entrada
-      </Button>
-    </div>
+              <h2 className="text-xl font-black">
+                Entradas
+              </h2>
 
-    <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-      <Card>
-        <p className="text-sm text-slate-500">
-          Doses em estoque
-        </p>
+              <p className="mt-1 text-sm text-slate-500">
+                Registre o recebimento de vacinas na Central de Imunização.
+              </p>
 
-        <p className="mt-2 text-3xl font-bold text-brand-600">
-          {totalDoses.toLocaleString('pt-BR')}
-        </p>
-      </Card>
+            </div>
 
-      <Card>
-        <p className="text-sm text-slate-500">
-          Lotes cadastrados
-        </p>
+            <Button
+              onClick={
+                openNewLot
+              }
+            >
+              <Plus
+                size={16}
+                className="mr-2"
+              />
 
-        <p className="mt-2 text-3xl font-bold">
-          {lots.length}
-        </p>
-      </Card>
+              Nova entrada
+            </Button>
 
-      <Card>
-        <p className="text-sm text-slate-500">
-          Vacinas ativas
-        </p>
+          </div>
 
-        <p className="mt-2 text-3xl font-bold text-emerald-600">
-          {activeVaccines}
-        </p>
-      </Card>
-    </section>
+          <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
 
-    <Card>
-      <h3 className="text-lg font-bold">
-        Como funciona
-      </h3>
+            <Card className="rounded-2xl">
 
-      <p className="mt-2 text-sm text-slate-500">
-        Ao registrar uma nova entrada, informe a vacina, o lote,
-        a validade e o número de doses recebidas.
-      </p>
+              <p className="text-sm text-slate-500">
+                Doses em estoque
+              </p>
 
-      <p className="mt-2 text-sm text-slate-500">
-        Se o lote já existir, futuramente o sistema irá somar as doses
-        ao lote existente. Se for um lote novo, ele será cadastrado
-        automaticamente.
-      </p>
-    </Card>
-  </>
-)}
+              <p className="mt-2 text-3xl font-black text-blue-600">
+                {totalDoses.toLocaleString(
+                  'pt-BR'
+                )}
+              </p>
+
+            </Card>
+
+            <Card className="rounded-2xl">
+
+              <p className="text-sm text-slate-500">
+                Lotes cadastrados
+              </p>
+
+              <p className="mt-2 text-3xl font-black">
+                {
+                  lots.length
+                }
+              </p>
+
+            </Card>
+
+            <Card className="rounded-2xl">
+
+              <p className="text-sm text-slate-500">
+                Vacinas ativas
+              </p>
+
+              <p className="mt-2 text-3xl font-black text-emerald-600">
+                {
+                  activeVaccines
+                }
+              </p>
+
+            </Card>
+
+          </section>
+
+          <Card className="rounded-2xl">
+
+            <h3 className="text-lg font-black">
+              Como funciona
+            </h3>
+
+            <p className="mt-2 text-sm text-slate-500">
+              Ao registrar uma nova entrada, informe a vacina, número do lote, número do documento, validade e doses recebidas.
+            </p>
+
+            <p className="mt-2 text-sm text-slate-500">
+              Se o lote já existir, as novas doses serão somadas ao estoque existente.
+            </p>
+
+          </Card>
+
+        </>
+      )}
 
       {/* =====================================================
           MOVIMENTAÇÕES
       ===================================================== */}
 
-     {activeTab === 'MOVIMENTACOES' && (
-  <>
-    <div>
-      <h2 className="text-xl font-bold">
-        Movimentações
-      </h2>
+      {activeTab ===
+        'MOVIMENTACOES' && (
+        <>
 
-      <p className="mt-1 text-sm text-slate-500">
-        Histórico de entradas, saídas e ajustes do Estoque Central.
-      </p>
-    </div>
+          <div>
 
-    <Card className="overflow-hidden p-0">
-      <div className="overflow-x-auto">
-        <table className="w-full text-left">
-          <thead className="bg-slate-50 dark:bg-slate-800/50">
-            <tr>
-              <th className="px-5 py-4 text-xs font-bold uppercase text-slate-500">
-                Data
-              </th>
+            <h2 className="text-xl font-black">
+              Movimentações
+            </h2>
 
-              <th className="px-5 py-4 text-xs font-bold uppercase text-slate-500">
-                Tipo
-              </th>
+            <p className="mt-1 text-sm text-slate-500">
+              Histórico de entradas, saídas e ajustes do Estoque Central.
+            </p>
 
-              <th className="px-5 py-4 text-xs font-bold uppercase text-slate-500">
-                Vacina
-              </th>
+          </div>
 
-              <th className="px-5 py-4 text-xs font-bold uppercase text-slate-500">
-                Lote
-              </th>
+          <Card className="overflow-hidden rounded-2xl p-0">
 
-              <th className="px-5 py-4 text-right text-xs font-bold uppercase text-slate-500">
-                Doses
-              </th>
+            <div className="overflow-x-auto">
 
-              <th className="px-5 py-4 text-xs font-bold uppercase text-slate-500">
-                Descrição
-              </th>
-            </tr>
-          </thead>
+              <table className="w-full text-left">
 
-          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-            {movements.length === 0 ? (
-              <tr>
-                <td
-                  colSpan={6}
-                  className="px-6 py-12 text-center text-sm text-slate-500"
-                >
-                  Nenhuma movimentação registrada.
-                </td>
-              </tr>
-            ) : (
-              movements.map((movement) => {
-                const vaccine = vaccines.find(
-                  (item) => item.id === movement.vaccineId
-                );
+                <thead className="bg-slate-50 dark:bg-slate-800/50">
 
-                return (
-                  <tr key={movement.id}>
-                    <td className="px-5 py-4 text-sm">
-                      {new Date(
-                        movement.date
-                      ).toLocaleString('pt-BR')}
-                    </td>
+                  <tr>
 
-                    <td className="px-5 py-4">
-                      <span
-                        className={`rounded-full px-2 py-1 text-xs font-bold ${
-                          movement.type === 'ENTRADA'
-                            ? 'bg-emerald-100 text-emerald-700'
-                            : movement.type === 'SAIDA'
-                            ? 'bg-red-100 text-red-700'
-                            : 'bg-amber-100 text-amber-700'
-                        }`}
-                      >
-                        {movement.type}
-                      </span>
-                    </td>
+                    <th className="px-5 py-4 text-xs font-bold uppercase text-slate-500">
+                      Data
+                    </th>
 
-                    <td className="px-5 py-4 font-semibold">
-                      {vaccine?.name || 'Vacina não encontrada'}
-                    </td>
+                    <th className="px-5 py-4 text-xs font-bold uppercase text-slate-500">
+                      Tipo
+                    </th>
 
-                    <td className="px-5 py-4 text-sm">
-                      {movement.lotNumber}
-                    </td>
+                    <th className="px-5 py-4 text-xs font-bold uppercase text-slate-500">
+                      Vacina
+                    </th>
 
-                    <td
-                      className={`px-5 py-4 text-right font-bold ${
-                        movement.type === 'ENTRADA'
-                          ? 'text-emerald-600'
-                          : movement.type === 'SAIDA'
-                          ? 'text-red-600'
-                          : 'text-amber-600'
-                      }`}
-                    >
-                      {movement.type === 'ENTRADA'
-                        ? '+'
-                        : movement.type === 'SAIDA'
-                        ? '-'
-                        : ''}
-                      {movement.doses.toLocaleString('pt-BR')}
-                    </td>
+                    <th className="px-5 py-4 text-xs font-bold uppercase text-slate-500">
+                      Lote
+                    </th>
 
-                    <td className="px-5 py-4 text-sm text-slate-500">
-                      {movement.description || '-'}
-                    </td>
+                    <th className="px-5 py-4 text-right text-xs font-bold uppercase text-slate-500">
+                      Doses
+                    </th>
+
+                    <th className="px-5 py-4 text-xs font-bold uppercase text-slate-500">
+                      Descrição
+                    </th>
+
                   </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
-    </Card>
-  </>
-)}
+
+                </thead>
+
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+
+                  {movements.length ===
+                  0 ? (
+                    <tr>
+
+                      <td
+                        colSpan={6}
+                        className="px-6 py-12 text-center text-sm text-slate-500"
+                      >
+                        Nenhuma movimentação registrada.
+                      </td>
+
+                    </tr>
+                  ) : (
+                    movements.map(
+                      (
+                        movement
+                      ) => {
+                        const vaccine =
+                          vaccines.find(
+                            (item) =>
+                              item.id ===
+                              movement.vaccineId
+                          );
+
+                        return (
+                          <tr
+                            key={
+                              movement.id
+                            }
+                          >
+
+                            <td className="px-5 py-4 text-sm">
+                              {new Date(
+                                movement.date
+                              ).toLocaleString(
+                                'pt-BR'
+                              )}
+                            </td>
+
+                            <td className="px-5 py-4">
+
+                              <span
+                                className={`rounded-full px-2 py-1 text-xs font-bold ${
+                                  movement.type ===
+                                  'ENTRADA'
+                                    ? 'bg-emerald-100 text-emerald-700'
+                                    : movement.type ===
+                                      'SAIDA'
+                                    ? 'bg-red-100 text-red-700'
+                                    : 'bg-amber-100 text-amber-700'
+                                }`}
+                              >
+                                {
+                                  movement.type
+                                }
+                              </span>
+
+                            </td>
+
+                            <td className="px-5 py-4 font-semibold">
+                              {vaccine?.name ||
+                                'Vacina não encontrada'}
+                            </td>
+
+                            <td className="px-5 py-4 text-sm">
+                              {
+                                movement.lotNumber
+                              }
+                            </td>
+
+                            <td
+                              className={`px-5 py-4 text-right font-black ${
+                                movement.type ===
+                                'ENTRADA'
+                                  ? 'text-emerald-600'
+                                  : movement.type ===
+                                    'SAIDA'
+                                  ? 'text-red-600'
+                                  : 'text-amber-600'
+                              }`}
+                            >
+                              {movement.type ===
+                              'ENTRADA'
+                                ? '+'
+                                : movement.type ===
+                                  'SAIDA'
+                                ? '-'
+                                : ''}
+
+                              {movement.doses.toLocaleString(
+                                'pt-BR'
+                              )}
+                            </td>
+
+                            <td className="px-5 py-4 text-sm text-slate-500">
+                              {movement.description ||
+                                '-'}
+                            </td>
+
+                          </tr>
+                        );
+                      }
+                    )
+                  )}
+
+                </tbody>
+
+              </table>
+
+            </div>
+
+          </Card>
+
+        </>
+      )}
 
       {/* =====================================================
           MODAL EDITAR VACINA
@@ -1992,11 +2213,11 @@ const [
       {selectedVaccine && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/60 p-4">
 
-          <Card className="max-h-[90vh] w-full max-w-xl overflow-y-auto">
+          <Card className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-3xl">
 
             <div className="flex items-start justify-between">
 
-              <h2 className="text-xl font-bold">
+              <h2 className="text-xl font-black">
                 Editar vacina
               </h2>
 
@@ -2017,7 +2238,7 @@ const [
 
             <div className="mt-5">
 
-              <div className="flex h-52 items-center justify-center overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-800">
+              <div className="flex h-52 items-center justify-center overflow-hidden rounded-2xl bg-slate-100 dark:bg-slate-800">
 
                 {editImage ? (
                   <img
@@ -2036,7 +2257,7 @@ const [
 
               </div>
 
-              <label className="mt-3 flex cursor-pointer items-center justify-center rounded-lg border border-slate-200 px-4 py-2 text-sm font-bold">
+              <label className="mt-3 flex cursor-pointer items-center justify-center rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold">
 
                 <ImagePlus
                   size={16}
@@ -2078,7 +2299,7 @@ const [
                         .value
                     )
                   }
-                  className="w-full rounded-lg border border-slate-200 bg-transparent px-3 py-2 dark:border-slate-700"
+                  className="w-full rounded-xl border border-slate-200 bg-transparent px-3 py-2.5 dark:border-slate-700"
                 />
 
               </div>
@@ -2101,7 +2322,7 @@ const [
                         .value as VaccineCategory
                     )
                   }
-                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-900"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 dark:border-slate-700 dark:bg-slate-900"
                 >
 
                   {vaccineCategories.map(
@@ -2127,7 +2348,7 @@ const [
 
               </div>
 
-              <label className="flex items-center justify-between rounded-xl bg-slate-50 p-4 dark:bg-slate-800/50">
+              <label className="flex items-center justify-between rounded-2xl bg-slate-50 p-4 dark:bg-slate-800/50">
 
                 <span className="font-semibold">
                   Vacina ativa
@@ -2192,13 +2413,13 @@ const [
       {showLotModal && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-950/60 p-4">
 
-          <Card className="w-full max-w-lg">
+          <Card className="w-full max-w-lg rounded-3xl">
 
             <div className="flex items-start justify-between">
 
               <div>
 
-                <h2 className="text-xl font-bold">
+                <h2 className="text-xl font-black">
                   {editingLot
                     ? 'Editar lote'
                     : 'Novo lote'}
@@ -2227,6 +2448,8 @@ const [
 
             <div className="mt-6 space-y-4">
 
+              {/* VACINA */}
+
               <div>
 
                 <label className="mb-1 block text-xs font-bold text-slate-500">
@@ -2245,7 +2468,7 @@ const [
                         .value
                     )
                   }
-                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-900"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 dark:border-slate-700 dark:bg-slate-900"
                 >
 
                   <option value="">
@@ -2280,6 +2503,8 @@ const [
 
               </div>
 
+              {/* NÚMERO DO LOTE */}
+
               <div>
 
                 <label className="mb-1 block text-xs font-bold text-slate-500">
@@ -2299,10 +2524,38 @@ const [
                     )
                   }
                   placeholder="Ex.: 0375MA047"
-                  className="w-full rounded-lg border border-slate-200 bg-transparent px-3 py-2 dark:border-slate-700"
+                  className="w-full rounded-xl border border-slate-200 bg-transparent px-3 py-2.5 dark:border-slate-700"
                 />
 
               </div>
+
+              {/* NÚMERO DO DOCUMENTO */}
+
+              <div>
+
+                <label className="mb-1 block text-xs font-bold text-slate-500">
+                  Número do documento
+                </label>
+
+                <input
+                  value={
+                    lotDocumentNumber
+                  }
+                  onChange={(
+                    event
+                  ) =>
+                    setLotDocumentNumber(
+                      event.target
+                        .value
+                    )
+                  }
+                  placeholder="Ex.: DOC-2026-00125"
+                  className="w-full rounded-xl border border-slate-200 bg-transparent px-3 py-2.5 dark:border-slate-700"
+                />
+
+              </div>
+
+              {/* VALIDADE */}
 
               <div>
 
@@ -2323,10 +2576,12 @@ const [
                         .value
                     )
                   }
-                  className="w-full rounded-lg border border-slate-200 bg-transparent px-3 py-2 dark:border-slate-700"
+                  className="w-full rounded-xl border border-slate-200 bg-transparent px-3 py-2.5 dark:border-slate-700"
                 />
 
               </div>
+
+              {/* DOSES */}
 
               <div>
 
@@ -2350,7 +2605,7 @@ const [
                       )
                     )
                   }
-                  className="w-full rounded-lg border border-slate-200 bg-transparent px-3 py-2 dark:border-slate-700"
+                  className="w-full rounded-xl border border-slate-200 bg-transparent px-3 py-2.5 dark:border-slate-700"
                 />
 
               </div>
@@ -2380,7 +2635,9 @@ const [
                   className="mr-2"
                 />
 
-                Salvar lote
+                {editingLot
+                  ? 'Salvar alterações'
+                  : 'Salvar lote'}
               </Button>
 
             </div>
