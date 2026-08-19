@@ -21,6 +21,8 @@ import { CentralStock } from './pages/municipal/CentralStock';
 
 import { AdminDashboard } from './pages/super-admin/AdminDashboard';
 
+import { Deliveries } from './pages/municipal/Deliveries';
+
 const Protected = ({
   superAdmin = false,
 }: {
@@ -113,6 +115,10 @@ export default function App() {
           path="/app/memorando/:protocol"
           element={<Memorandum />}
         />
+        <Route
+          path="/app/entregas"
+          element={<Deliveries />}
+/>
 
         {/* ===============================
             ESTOQUE CENTRAL
