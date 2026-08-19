@@ -23,6 +23,8 @@ import { AdminDashboard } from './pages/super-admin/AdminDashboard';
 
 import { Deliveries } from './pages/municipal/Deliveries';
 
+import { MunicipalLayout } from './pages/municipal/MunicipalLayout';
+
 const Protected = ({
   superAdmin = false,
 }: {
@@ -76,61 +78,53 @@ export default function App() {
           ÁREA MUNICIPAL / CENTRAL
       ================================================== */}
 
-      <Route
-        element={<Protected />}
-      >
+      <Route element={<Protected />}>
 
-        {/* MENU CENTRAL */}
-        <Route
-          path="/app"
-          element={<MunicipalDashboard />}
-        />
+  <Route element={<MunicipalLayout />}>
 
-        {/* NOVA SOLICITAÇÃO */}
-        <Route
-          path="/app/pedir-vacina"
-          element={<OrderVaccines />}
-        />
+    <Route
+      path="/app"
+      element={<MunicipalDashboard />}
+    />
 
-        {/* MINHAS SOLICITAÇÕES */}
-        <Route
-          path="/app/meus-pedidos"
-          element={<MyOrders />}
-        />
+    <Route
+      path="/app/pedir-vacina"
+      element={<OrderVaccines />}
+    />
 
-        {/* SOLICITAÇÕES DA CENTRAL */}
-        <Route
-          path="/app/solicitacoes"
-          element={<Requests />}
-        />
+    <Route
+      path="/app/meus-pedidos"
+      element={<MyOrders />}
+    />
 
-        {/* ANÁLISE / AUTORIZAÇÃO */}
-        <Route
-          path="/app/solicitacoes/:protocol"
-          element={<RequestAnalysis />}
-        />
+    <Route
+      path="/app/solicitacoes"
+      element={<Requests />}
+    />
 
-        {/* MEMORANDO */}
-        <Route
-          path="/app/memorando/:protocol"
-          element={<Memorandum />}
-        />
-        <Route
-          path="/app/entregas"
-          element={<Deliveries />}
-/>
+    <Route
+      path="/app/solicitacoes/:protocol"
+      element={<RequestAnalysis />}
+    />
 
-        {/* ===============================
-            ESTOQUE CENTRAL
-        =============================== */}
+    <Route
+      path="/app/memorando/:protocol"
+      element={<Memorandum />}
+    />
 
-        <Route
-          path="/app/estoque"
-          element={<CentralStock />}
-        />
+    <Route
+      path="/app/entregas"
+      element={<Deliveries />}
+    />
 
-      </Route>
+    <Route
+      path="/app/estoque"
+      element={<CentralStock />}
+    />
 
+  </Route>
+
+</Route>
       {/* ==================================================
           ADMINISTRADOR GLOBAL
       ================================================== */}
