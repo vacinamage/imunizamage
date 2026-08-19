@@ -3,6 +3,7 @@ import {
   Bell,
   BookOpen,
   ClipboardList,
+  Clock3,
   LayoutDashboard,
   Moon,
   Package,
@@ -38,6 +39,11 @@ const menuItems = [
     icon: Truck,
     path: '/app/entregas',
   },
+  {
+    label: 'Histórico',
+    icon: Clock3,
+    path: '/app/historico',
+  },
 ];
 
 export const MunicipalLayout = () => {
@@ -65,9 +71,7 @@ export const MunicipalLayout = () => {
   return (
     <div className="min-h-screen bg-slate-50">
 
-      {/* =====================================================
-          SIDEBAR
-      ===================================================== */}
+      {/* SIDEBAR */}
 
       <aside className="fixed left-0 top-0 z-40 flex h-screen w-[270px] flex-col border-r border-slate-200 bg-white">
 
@@ -155,9 +159,7 @@ export const MunicipalLayout = () => {
                       }
                     />
 
-                    {
-                      item.label
-                    }
+                    {item.label}
 
                   </button>
                 );
@@ -223,19 +225,17 @@ export const MunicipalLayout = () => {
 
       </aside>
 
-      {/* =====================================================
-          ÁREA PRINCIPAL
-      ===================================================== */}
+      {/* ÁREA PRINCIPAL */}
 
       <div className="pl-[270px]">
 
         {/* TOPBAR */}
 
-        <header className="sticky top-0 z-30 flex h-[92px] items-center justify-between border-b border-slate-200 bg-white/95 px-5 backdrop-blur lg:px-10">
+        <header className="sticky top-0 z-30 flex h-[92px] items-center justify-between border-b border-slate-200 bg-white/95 px-10 backdrop-blur">
 
           <div>
 
-            {!isDashboard ? (
+            {!isDashboard && (
               <button
                 type="button"
                 onClick={() =>
@@ -255,27 +255,11 @@ export const MunicipalLayout = () => {
                 Voltar
 
               </button>
-            ) : (
-              <div className="flex items-center gap-3 lg:hidden">
-
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white">
-
-                  <Plus
-                    size={23}
-                  />
-
-                </div>
-
-                <span className="font-black text-blue-600">
-                  IMUNIZA PLUS
-                </span>
-
-              </div>
             )}
 
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-4">
+          <div className="flex items-center gap-4">
 
             <button
               type="button"
@@ -290,6 +274,7 @@ export const MunicipalLayout = () => {
               type="button"
               className="relative flex h-10 w-10 items-center justify-center rounded-xl text-slate-500 transition hover:bg-slate-100"
             >
+
               <Bell
                 size={21}
               />
@@ -297,15 +282,17 @@ export const MunicipalLayout = () => {
               <span className="absolute right-0 top-0 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">
                 4
               </span>
+
             </button>
 
-            <div className="hidden items-center gap-3 border-l border-slate-200 pl-4 sm:flex">
+            <div className="flex items-center gap-3 border-l border-slate-200 pl-4">
 
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-sm font-bold text-slate-500">
                 IC
               </div>
 
               <div>
+
                 <p className="text-sm font-bold text-slate-800">
                   Imunização
                 </p>
@@ -313,6 +300,7 @@ export const MunicipalLayout = () => {
                 <p className="text-[11px] text-slate-400">
                   Central
                 </p>
+
               </div>
 
             </div>
