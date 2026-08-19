@@ -53,7 +53,7 @@ type PrintRow = {
 };
 
 /* =========================================================
-   FUNÇÕES
+   FORMATAÇÃO DA DATA
 ========================================================= */
 
 const formatDate = (
@@ -65,6 +65,10 @@ const formatDate = (
     );
   }
 
+  /*
+   * Se já estiver em formato brasileiro,
+   * mantém somente data/hora recebida.
+   */
   if (
     value.includes('/')
   ) {
@@ -111,6 +115,10 @@ export const Memorandum = () => {
     (location.state ||
       {}) as MemorandumState;
 
+  /* =======================================================
+     NÚMERO DO MEMORANDO
+  ======================================================= */
+
   const memorandumNumber =
     state.memorandumNumber ||
     `MEM-${new Date().getFullYear()}-${protocol
@@ -119,7 +127,7 @@ export const Memorandum = () => {
       .padStart(6, '0')}`;
 
   /* =======================================================
-     ITENS
+     ITENS AUTORIZADOS
   ======================================================= */
 
   const items:
@@ -130,7 +138,8 @@ export const Memorandum = () => {
       ? state.analyzedItems
       : request?.items.map(
           (item) => ({
-            id: item.id,
+            id:
+              item.id,
 
             vaccineId:
               item.vaccineId,
@@ -144,12 +153,13 @@ export const Memorandum = () => {
             authorizedQuantity:
               item.requestedQuantity,
 
-            lotAllocations: [],
+            lotAllocations:
+              [],
           })
         ) ?? [];
 
   /* =======================================================
-     LINHAS DE IMPRESSÃO
+     GERAR LINHAS DA TABELA
   ======================================================= */
 
   const rows:
@@ -163,6 +173,11 @@ export const Memorandum = () => {
     )
     .forEach(
       (item) => {
+        /*
+         * Quando a vacina saiu de
+         * mais de um lote, cada lote
+         * aparece em uma linha.
+         */
         if (
           item.lotAllocations &&
           item.lotAllocations
@@ -174,7 +189,8 @@ export const Memorandum = () => {
               index
             ) => {
               rows.push({
-                id: `${item.id}-${allocation.lotId}-${index}`,
+                id:
+                  `${item.id}-${allocation.lotId}-${index}`,
 
                 vaccineName:
                   item.vaccineName,
@@ -191,6 +207,10 @@ export const Memorandum = () => {
           return;
         }
 
+        /*
+         * Compatibilidade com pedidos
+         * antigos.
+         */
         rows.push({
           id:
             item.id,
@@ -209,11 +229,16 @@ export const Memorandum = () => {
     );
 
   /* =======================================================
-     DIVISÃO DA TABELA
+     DIVIDIR A TABELA
   ======================================================= */
 
+  /*
+   * Com mais de 7 linhas,
+   * divide automaticamente
+   * em duas tabelas lado a lado.
+   */
   const splitTable =
-    rows.length > 8;
+    rows.length > 7;
 
   const middleIndex =
     Math.ceil(
@@ -235,6 +260,17 @@ export const Memorandum = () => {
         )
       : [];
 
+  /*
+   * Se houver muitos lotes,
+   * ativa compactação apenas
+   * na tabela.
+   */
+  const compactTable =
+    rows.length > 14;
+
+  const veryCompactTable =
+    rows.length > 20;
+
   const totalDoses =
     rows.reduce(
       (
@@ -247,14 +283,24 @@ export const Memorandum = () => {
     );
 
   /* =======================================================
-     TABELA
+     RENDERIZAR TABELA
   ======================================================= */
 
   const renderTable = (
     tableRows:
       PrintRow[]
   ) => (
-    <table className="memorandum-table">
+    <table
+      className={`memorandum-table ${
+        compactTable
+          ? 'compact-table'
+          : ''
+      } ${
+        veryCompactTable
+          ? 'very-compact-table'
+          : ''
+      }`}
+    >
 
       <thead>
 
@@ -292,13 +338,13 @@ export const Memorandum = () => {
                 }
               </td>
 
-              <td className="text-center">
+              <td className="table-center">
                 {
                   row.lotNumber
                 }
               </td>
 
-              <td className="text-center font-bold">
+              <td className="table-center table-dose">
                 {
                   row.doses
                 }
@@ -314,7 +360,7 @@ export const Memorandum = () => {
   );
 
   /* =======================================================
-     VIA DO MEMORANDO
+     UMA VIA DO MEMORANDO
   ======================================================= */
 
   const renderMemorandumCopy = (
@@ -322,15 +368,19 @@ export const Memorandum = () => {
   ) => (
     <section className="memorandum-copy">
 
-      {/* VIA */}
+      {/* IDENTIFICAÇÃO DA VIA */}
 
       <div className="copy-label">
-        {copyLabel}
+        {
+          copyLabel
+        }
       </div>
 
       {/* CABEÇALHO */}
 
       <div className="memorandum-header">
+
+        {/* LOGO */}
 
         <div className="memorandum-logo">
 
@@ -352,6 +402,8 @@ export const Memorandum = () => {
 
         </div>
 
+        {/* CENTRAL */}
+
         <div className="memorandum-header-center">
 
           <h1>
@@ -364,17 +416,19 @@ export const Memorandum = () => {
 
         </div>
 
+        {/* ÍCONE */}
+
         <div className="memorandum-document-icon">
 
           <FileText
-            size={20}
+            size={24}
           />
 
         </div>
 
       </div>
 
-      {/* MEMORANDO */}
+      {/* TÍTULO */}
 
       <div className="memorandum-title">
 
@@ -444,7 +498,7 @@ export const Memorandum = () => {
         Encaminhamos abaixo os imunobiológicos autorizados para atendimento da solicitação da unidade.
       </p>
 
-      {/* TABELAS */}
+      {/* TABELA */}
 
       {!splitTable ? (
         <div className="single-table">
@@ -458,19 +512,15 @@ export const Memorandum = () => {
         <div className="double-table">
 
           <div>
-
             {renderTable(
               leftRows
             )}
-
           </div>
 
           <div>
-
             {renderTable(
               rightRows
             )}
-
           </div>
 
         </div>
@@ -509,7 +559,7 @@ export const Memorandum = () => {
             Nome / assinatura
           </p>
 
-          <p>
+          <p className="signature-date">
             Data: _____ / _____ / ______
           </p>
 
@@ -527,7 +577,7 @@ export const Memorandum = () => {
             Responsável pela liberação
           </p>
 
-          <p>
+          <p className="signature-date">
             Data: _____ / _____ / ______
           </p>
 
@@ -539,7 +589,7 @@ export const Memorandum = () => {
   );
 
   /* =======================================================
-     SOLICITAÇÃO NÃO ENCONTRADA
+     NÃO ENCONTRADO
   ======================================================= */
 
   if (!request) {
@@ -570,15 +620,15 @@ export const Memorandum = () => {
   }
 
   /* =========================================================
-     RETURN
+     TELA
   ========================================================= */
 
   return (
     <div className="mx-auto max-w-[1200px]">
 
-      {/* BOTÃO */}
+      {/* ÁREA FORA DA IMPRESSÃO */}
 
-      <div className="no-print mb-6 flex items-center justify-between">
+      <div className="no-print mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 
         <div>
 
@@ -598,25 +648,31 @@ export const Memorandum = () => {
           }
         >
           <Printer
-            size={17}
+            size={18}
             className="mr-2"
           />
 
-          Imprimir
+          Imprimir memorando
         </Button>
 
       </div>
 
-      {/* DOCUMENTO */}
+      {/* =====================================================
+          DOCUMENTO
+      ===================================================== */}
 
       <div
         id="memorandum-print"
         className="memorandum-page"
       >
 
+        {/* PRIMEIRA VIA */}
+
         {renderMemorandumCopy(
           '1ª VIA - UNIDADE'
         )}
+
+        {/* CORTE */}
 
         <div className="cut-line">
 
@@ -626,6 +682,8 @@ export const Memorandum = () => {
 
         </div>
 
+        {/* SEGUNDA VIA */}
+
         {renderMemorandumCopy(
           '2ª VIA - CENTRAL'
         )}
@@ -633,81 +691,156 @@ export const Memorandum = () => {
       </div>
 
       {/* =====================================================
-          CSS
+          ESTILOS
       ===================================================== */}
 
       <style>
         {`
 
+        /* ===================================================
+           PÁGINA A4
+        =================================================== */
+
         .memorandum-page {
           width: 210mm;
           height: 297mm;
+
           margin: 0 auto;
-          padding: 5mm 8mm;
+
+          padding: 4mm 7mm;
+
           box-sizing: border-box;
-          background: white;
-          color: #111827;
-          font-family: Arial, Helvetica, sans-serif;
-          box-shadow: 0 1px 4px rgba(15, 23, 42, 0.12);
+
           overflow: hidden;
+
+          background: white;
+          color: #0f172a;
+
+          font-family:
+            Arial,
+            Helvetica,
+            sans-serif;
+
+          box-shadow:
+            0 2px 8px
+            rgba(15, 23, 42, 0.12);
         }
+
+        /* ===================================================
+           CADA VIA
+        =================================================== */
 
         .memorandum-copy {
-          height: 138mm;
+          height: 139mm;
+
           box-sizing: border-box;
+
           overflow: hidden;
         }
 
+        /* ===================================================
+           IDENTIFICAÇÃO DA VIA
+        =================================================== */
+
         .copy-label {
-          height: 4mm;
+          height: 5mm;
+
           text-align: right;
-          color: #64748b;
-          font-size: 6px;
-          line-height: 4mm;
-          font-weight: 800;
+
+          color: #475569;
+
+          font-size: 8px;
+
+          line-height: 5mm;
+
+          font-weight: 900;
+
+          letter-spacing: .4px;
         }
+
+        /* ===================================================
+           CABEÇALHO
+        =================================================== */
 
         .memorandum-header {
           display: grid;
-          grid-template-columns: 1fr 1.5fr 1fr;
+
+          grid-template-columns:
+            1fr
+            1.7fr
+            1fr;
+
           align-items: center;
-          padding-bottom: 3px;
-          border-bottom: 2px solid #1e3a8a;
+
+          padding-bottom: 5px;
+
+          border-bottom:
+            2px solid
+            #1e3a8a;
         }
+
+        /* ===================================================
+           LOGO
+        =================================================== */
 
         .memorandum-logo {
           display: flex;
+
           align-items: center;
-          gap: 6px;
+
+          gap: 7px;
         }
 
         .memorandum-logo-icon {
           display: flex;
-          width: 25px;
-          height: 25px;
+
+          width: 30px;
+          height: 30px;
+
           align-items: center;
           justify-content: center;
-          border-radius: 6px;
-          background: #2563eb;
+
+          border-radius: 7px;
+
+          background:
+            #2563eb;
+
           color: white;
-          font-size: 20px;
+
+          font-size: 24px;
+
           font-weight: 900;
+
+          line-height: 1;
         }
 
         .memorandum-logo-main {
-          color: #2563eb;
-          font-size: 12px;
+          color:
+            #2563eb;
+
+          font-size: 15px;
+
           font-weight: 900;
+
           line-height: 1;
         }
 
         .memorandum-logo-plus {
-          margin-top: 2px;
-          color: #38bdf8;
-          font-size: 7px;
+          margin-top: 3px;
+
+          color:
+            #38bdf8;
+
+          font-size: 9px;
+
           font-weight: 900;
+
           letter-spacing: 2px;
         }
+
+        /* ===================================================
+           CABEÇALHO CENTRAL
+        =================================================== */
 
         .memorandum-header-center {
           text-align: center;
@@ -715,81 +848,160 @@ export const Memorandum = () => {
 
         .memorandum-header-center h1 {
           margin: 0;
-          font-size: 9px;
+
+          font-size: 12px;
+
           font-weight: 900;
         }
 
         .memorandum-header-center p {
-          margin: 2px 0 0;
-          font-size: 5.5px;
+          margin: 3px 0 0;
+
+          font-size: 7px;
+
           font-weight: 700;
-          letter-spacing: .6px;
+
+          letter-spacing: .7px;
         }
 
         .memorandum-document-icon {
           display: flex;
+
           justify-content: flex-end;
-          color: #2563eb;
+
+          color:
+            #2563eb;
         }
+
+        /* ===================================================
+           TÍTULO
+        =================================================== */
 
         .memorandum-title {
           display: flex;
+
           align-items: center;
-          justify-content: space-between;
-          margin-top: 4px;
-          padding: 3px 6px;
-          border: 1px solid #bfdbfe;
-          border-radius: 4px;
-          background: #eff6ff;
+
+          justify-content:
+            space-between;
+
+          margin-top: 5px;
+
+          padding:
+            5px 8px;
+
+          border:
+            1px solid
+            #bfdbfe;
+
+          border-radius:
+            5px;
+
+          background:
+            #eff6ff;
         }
 
         .memorandum-title strong {
-          font-size: 8px;
-          letter-spacing: .6px;
+          font-size: 11px;
+
+          letter-spacing:
+            .7px;
         }
 
         .memorandum-title span {
-          color: #1d4ed8;
-          font-size: 7px;
+          color:
+            #1d4ed8;
+
+          font-size: 10px;
+
           font-weight: 900;
         }
 
+        /* ===================================================
+           INFORMAÇÕES
+        =================================================== */
+
         .memorandum-info {
           display: grid;
-          grid-template-columns: 2fr 1.1fr .9fr;
-          gap: 4px;
-          margin-top: 4px;
+
+          grid-template-columns:
+            2fr
+            1.15fr
+            1fr;
+
+          gap: 5px;
+
+          margin-top: 5px;
         }
 
         .memorandum-info > div {
           min-width: 0;
-          padding: 3px 5px;
-          border: 1px solid #d1d5db;
-          border-radius: 4px;
+
+          padding:
+            4px 6px;
+
+          border:
+            1px solid
+            #cbd5e1;
+
+          border-radius:
+            4px;
         }
 
         .memorandum-info span {
           display: block;
-          color: #6b7280;
-          font-size: 5px;
+
+          color:
+            #64748b;
+
+          font-size: 7px;
+
           font-weight: 900;
+
+          letter-spacing:
+            .3px;
         }
 
         .memorandum-info strong {
           display: block;
-          margin-top: 1px;
+
+          margin-top: 2px;
+
           overflow: hidden;
-          font-size: 6.5px;
-          line-height: 1.15;
-          text-overflow: ellipsis;
-          white-space: nowrap;
+
+          color:
+            #0f172a;
+
+          font-size: 9px;
+
+          line-height: 1.2;
+
+          text-overflow:
+            ellipsis;
+
+          white-space:
+            nowrap;
         }
 
+        /* ===================================================
+           TEXTO
+        =================================================== */
+
         .memorandum-text {
-          margin: 4px 0;
-          font-size: 6px;
-          line-height: 1.2;
+          margin:
+            5px 0;
+
+          color:
+            #334155;
+
+          font-size: 8.5px;
+
+          line-height: 1.35;
         }
+
+        /* ===================================================
+           TABELA
+        =================================================== */
 
         .single-table {
           width: 100%;
@@ -797,174 +1009,395 @@ export const Memorandum = () => {
 
         .double-table {
           display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 5px;
+
+          grid-template-columns:
+            1fr 1fr;
+
+          gap: 6px;
+
           align-items: start;
         }
 
         .memorandum-table {
           width: 100%;
-          table-layout: fixed;
-          border-collapse: collapse;
-          font-size: 5.8px;
+
+          table-layout:
+            fixed;
+
+          border-collapse:
+            collapse;
+
+          font-size: 8.5px;
         }
 
         .memorandum-table th {
-          padding: 2px 3px;
-          border: 1px solid #9ca3af;
-          background: #e5e7eb;
-          font-size: 5px;
+          padding:
+            4px 5px;
+
+          border:
+            1px solid
+            #94a3b8;
+
+          background:
+            #e2e8f0;
+
+          color:
+            #1e293b;
+
+          font-size: 8px;
+
           font-weight: 900;
+
           text-align: left;
         }
 
         .memorandum-table td {
-          height: 10px;
-          padding: 1px 3px;
-          border: 1px solid #cbd5e1;
-          line-height: 1.1;
-          vertical-align: middle;
-          overflow-wrap: anywhere;
+          height: 18px;
+
+          padding:
+            3px 5px;
+
+          border:
+            1px solid
+            #cbd5e1;
+
+          color:
+            #0f172a;
+
+          font-size: 8.5px;
+
+          font-weight: 500;
+
+          line-height: 1.2;
+
+          vertical-align:
+            middle;
+
+          overflow-wrap:
+            anywhere;
+        }
+
+        .table-center {
+          text-align:
+            center;
+        }
+
+        .table-dose {
+          font-weight: 900 !important;
         }
 
         .lot-column {
-          width: 29%;
-          text-align: center !important;
+          width: 30%;
+
+          text-align:
+            center !important;
         }
 
         .dose-column {
-          width: 15%;
-          text-align: center !important;
+          width: 17%;
+
+          text-align:
+            center !important;
         }
+
+        /* ===================================================
+           TABELA COM MUITOS ITENS
+        =================================================== */
+
+        .memorandum-table.compact-table {
+          font-size: 7.5px;
+        }
+
+        .memorandum-table.compact-table th {
+          padding:
+            3px 4px;
+
+          font-size:
+            7px;
+        }
+
+        .memorandum-table.compact-table td {
+          height: 15px;
+
+          padding:
+            2px 4px;
+
+          font-size:
+            7.5px;
+        }
+
+        .memorandum-table.very-compact-table {
+          font-size:
+            6.8px;
+        }
+
+        .memorandum-table.very-compact-table th {
+          padding:
+            2px 3px;
+
+          font-size:
+            6.5px;
+        }
+
+        .memorandum-table.very-compact-table td {
+          height: 13px;
+
+          padding:
+            2px 3px;
+
+          font-size:
+            6.8px;
+        }
+
+        /* ===================================================
+           TOTAL
+        =================================================== */
 
         .memorandum-total {
           display: flex;
+
           align-items: center;
-          justify-content: flex-end;
-          gap: 10px;
-          margin-top: 3px;
-          padding-top: 2px;
-          border-top: 1px solid #d1d5db;
+
+          justify-content:
+            flex-end;
+
+          gap: 12px;
+
+          margin-top: 5px;
+
+          padding-top: 4px;
+
+          border-top:
+            1px solid
+            #cbd5e1;
         }
 
         .memorandum-total span {
-          color: #64748b;
-          font-size: 5.5px;
+          color:
+            #64748b;
+
+          font-size: 8px;
+
           font-weight: 900;
         }
 
         .memorandum-total strong {
-          color: #1d4ed8;
-          font-size: 7px;
+          color:
+            #1d4ed8;
+
+          font-size: 11px;
+
+          font-weight: 900;
         }
+
+        /* ===================================================
+           ASSINATURAS
+        =================================================== */
 
         .memorandum-signatures {
           display: grid;
-          grid-template-columns: 1fr 1fr;
+
+          grid-template-columns:
+            1fr 1fr;
+
           gap: 18mm;
-          margin-top: 8mm;
-          padding: 0 7mm;
+
+          margin-top: 9mm;
+
+          padding:
+            0 8mm;
         }
 
         .signature-block {
-          text-align: center;
+          text-align:
+            center;
         }
 
         .signature-line {
-          margin-bottom: 3px;
-          border-top: 1px solid #111827;
+          margin-bottom:
+            5px;
+
+          border-top:
+            1px solid
+            #0f172a;
         }
 
         .signature-block strong {
           display: block;
-          font-size: 5.5px;
+
+          color:
+            #0f172a;
+
+          font-size: 8px;
+
+          font-weight: 900;
         }
 
         .signature-block p {
-          margin: 2px 0 0;
-          color: #64748b;
-          font-size: 4.8px;
+          margin:
+            3px 0 0;
+
+          color:
+            #64748b;
+
+          font-size: 7px;
         }
+
+        .signature-date {
+          margin-top:
+            5px !important;
+        }
+
+        /* ===================================================
+           LINHA DE CORTE
+        =================================================== */
 
         .cut-line {
           position: relative;
+
           display: flex;
-          height: 11mm;
+
+          height: 10mm;
+
           align-items: center;
-          justify-content: center;
+
+          justify-content:
+            center;
         }
 
         .cut-line::before {
           position: absolute;
+
           right: 0;
           left: 0;
-          border-top: 1px dashed #94a3b8;
+
+          border-top:
+            1px dashed
+            #94a3b8;
+
           content: '';
         }
 
         .cut-line span {
           position: relative;
+
           z-index: 1;
-          padding: 0 6px;
-          background: white;
-          color: #64748b;
-          font-size: 5.5px;
-          font-weight: 800;
+
+          padding:
+            0 8px;
+
+          background:
+            white;
+
+          color:
+            #64748b;
+
+          font-size: 7px;
+
+          font-weight: 900;
         }
+
+        /* ===================================================
+           IMPRESSÃO
+        =================================================== */
 
         @media print {
 
           @page {
-            size: A4 portrait;
+            size:
+              A4 portrait;
+
             margin: 0;
           }
 
           html,
           body {
-            width: 210mm !important;
-            height: 297mm !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            background: white !important;
+            width:
+              210mm !important;
+
+            height:
+              297mm !important;
+
+            margin:
+              0 !important;
+
+            padding:
+              0 !important;
+
+            background:
+              white !important;
           }
 
           body * {
-            visibility: hidden !important;
+            visibility:
+              hidden !important;
           }
 
           #memorandum-print,
           #memorandum-print * {
-            visibility: visible !important;
+            visibility:
+              visible !important;
           }
 
           #memorandum-print {
-            position: absolute !important;
-            top: 0 !important;
-            left: 0 !important;
+            position:
+              absolute !important;
 
-            width: 210mm !important;
-            height: 297mm !important;
+            top:
+              0 !important;
 
-            margin: 0 !important;
-            padding: 4mm 8mm !important;
+            left:
+              0 !important;
 
-            box-shadow: none !important;
+            width:
+              210mm !important;
 
-            overflow: hidden !important;
+            height:
+              297mm !important;
+
+            margin:
+              0 !important;
+
+            padding:
+              3mm 7mm !important;
+
+            background:
+              white !important;
+
+            box-shadow:
+              none !important;
+
+            overflow:
+              hidden !important;
           }
 
           .no-print {
-            display: none !important;
+            display:
+              none !important;
           }
 
           .memorandum-copy {
-            break-inside: avoid !important;
-            page-break-inside: avoid !important;
+            break-inside:
+              avoid !important;
+
+            page-break-inside:
+              avoid !important;
           }
 
           .memorandum-table tr {
-            break-inside: avoid !important;
-            page-break-inside: avoid !important;
+            break-inside:
+              avoid !important;
+
+            page-break-inside:
+              avoid !important;
+          }
+
+          .memorandum-signatures {
+            break-inside:
+              avoid !important;
+
+            page-break-inside:
+              avoid !important;
           }
 
         }

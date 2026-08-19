@@ -25,6 +25,8 @@ import { Deliveries } from './pages/municipal/Deliveries';
 
 import { MunicipalLayout } from './pages/municipal/MunicipalLayout';
 
+import { History } from './pages/municipal/History';
+
 const Protected = ({
   superAdmin = false,
 }: {
@@ -120,6 +122,7 @@ export default function App() {
     <Route
       path="/app/estoque"
       element={<CentralStock />}
+
     />
 
   </Route>
